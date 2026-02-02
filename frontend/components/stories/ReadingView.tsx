@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import BranchTree from '../branches/BranchTree';
 import SummaryCard from './SummaryCard';
@@ -185,6 +185,7 @@ interface ReadingViewProps {
   comments?: any[];
   summary?: any;
   selectedBranchId?: string;
+  onBranchSelect?: (branchId: string) => void;
   storyId?: string;
   onBack?: () => void;
 }
@@ -196,6 +197,7 @@ export default function ReadingView({
   comments = MOCK_COMMENTS,
   summary,
   selectedBranchId,
+  onBranchSelect,
   storyId,
   onBack 
 }: ReadingViewProps) {
@@ -204,13 +206,44 @@ export default function ReadingView({
   const [showCreateBranchModal, setShowCreateBranchModal] = useState(false);
   const [createBranchSegmentId, setCreateBranchSegmentId] = useState<string | null>(null);
 
+  // 当selectedBranchId从外部改变时，同步本地状态
+  useEffect(() => {
+    if (selectedBranchId && selectedBranchId !== selectedBranch) {
+      setSelectedBranch(selectedBranchId)
+    }
+  }, [selectedBranchId, selectedBranch])
+
+  // 处理分支选择
+  const handleBranchSelect = (branchId: string) => {
+    setSelectedBranch(branchId)
+    // 通知父组件更新选中的分支ID
+    if (onBranchSelect) {
+      onBranchSelect(branchId)
+    }
+  }
+
+  // 将API格式的分支数据转换为BranchTree期望的格式
+  // 主分支通常是parent_branch_id为null的分支
+  const transformedBranches = branches.map((branch: any) => {
+    const isMain = !branch.parent_branch_id && !branch.parentId
+    return {
+      id: branch.id,
+      label: branch.title || branch.label || '未命名分支',
+      segments: branch.segments_count || branch.segments || 0,
+      bots: branch.active_bots_count || branch.bots || 0,
+      isMain: isMain,
+      parentId: branch.parent_branch_id || branch.parentId || null,
+      forkAt: branch.fork_at_segment_order || branch.forkAt,
+    }
+  })
+
   return (
     <div className="max-w-[1080px] mx-auto px-6 py-10">
       <div className="flex gap-12">
         <BranchTree
-          branches={MOCK_BRANCHES}
-          selectedBranch={selectedBranch}
-          onSelect={setSelectedBranch}
+          branches={transformedBranches}
+          selectedBranch={selectedBranchId || selectedBranch}
+          onSelect={handleBranchSelect}
           onCreateBranch={() => setShowCreateBranchModal(true)}
         />
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery, useQueries } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
 import ReadingView from '../stories/ReadingView'
 import { storiesApi, branchesApi, segmentsApi, commentsApi, summariesApi } from '@/lib/api'
 import { useRouter } from 'next/navigation'
@@ -13,6 +14,9 @@ import { Suspense } from 'react'
 
 function StoryDetailContent({ storyId }: { storyId: string }) {
   const router = useRouter()
+  
+  // 分支选择状态管理
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null)
 
   // 优化：并行请求 story 和 branches，而不是串行
   const [storyQuery, branchesQuery] = useQueries({
@@ -39,8 +43,18 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
   const { data: story, isLoading: storyLoading } = storyQuery
   const { data: branches, isLoading: branchesLoading } = branchesQuery
 
-  // 获取选中分支的续写段
-  const selectedBranchId = branches?.data?.branches?.[0]?.id
+  // 当分支列表加载完成后，设置默认选中的分支（主分支或第一个分支）
+  const branchesList = branches?.data?.branches || []
+  useEffect(() => {
+    if (!selectedBranchId && branchesList.length > 0) {
+      // 优先选择主分支（parent_branch_id为null），否则选择第一个
+      const mainBranch = branchesList.find((b: any) => !b.parent_branch_id)
+      const defaultBranchId = mainBranch?.id || branchesList[0]?.id
+      if (defaultBranchId) {
+        setSelectedBranchId(defaultBranchId)
+      }
+    }
+  }, [branchesList, selectedBranchId])
   
   const segmentsQuery = useQuery({
     queryKey: ['segments', selectedBranchId],
@@ -126,6 +140,7 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
       comments={mappedComments}
       summary={summary?.data}
       selectedBranchId={selectedBranchId}
+      onBranchSelect={setSelectedBranchId}
       storyId={storyId}
       onBack={() => router.push('/')}
     />
