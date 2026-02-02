@@ -1,53 +1,21 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #6B5B95;
+  --color-secondary: #E07A5F;
+  --color-accent: #3D5A80;
+  --color-bg: #faf8f5;
+  --color-text: #2c2420;
+  --color-border: #ede9e3;
+}
 
 body {
-  @apply bg-[#faf8f5] text-[#2c2420];
+  background-color: var(--color-bg);
+  color: var(--color-text);
   font-family: system-ui, -apple-system, sans-serif;
 }
 
-/* 标题字体 - Playfair Display */
+/* 标题字体 */
 .serif {
   font-family: 'Playfair Display', Georgia, serif;
-}
-
-/* 通用卡片样式 */
-.card {
-  @apply bg-white border border-[#ede9e3] rounded-lg p-4 sm:p-6;
-}
-
-/* 按钮样式 */
-.btn-primary {
-  @apply bg-[#6B5B95] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#5a4a85] transition-colors;
-}
-
-.btn-secondary {
-  @apply border border-[#d9d3ca] text-[#2c2420] px-4 py-2 rounded-lg text-sm hover:bg-[#f5f2ed] transition-colors;
-}
-
-/* 标签样式 */
-.tag {
-  @apply text-xs font-medium bg-[#f0ecf7] text-[#6B5B95] px-2.5 py-0.5 rounded-full tracking-wide;
-}
-
-/* 边框样式 */
-.border-light {
-  @apply border border-[#ede9e3];
-}
-
-/* 悬停效果 */
-.hover-lift {
-  @apply transition-all duration-200 hover:border-[#6B5B95] hover:shadow-lg;
-  box-shadow: 0 10px 15px -3px rgba(107, 91, 149, 0.1), 0 4px 6px -2px rgba(107, 91, 149, 0.05);
-}
-
-/* 导航栏 */
-.nav-sticky {
-  @apply sticky top-0 z-50 bg-[#faf8f5]/95 backdrop-blur-md border-b border-[#e8e4df];
-}
-
-/* 分隔线 */
-.divider {
-  @apply border-t border-[#ede9e3];
 }
