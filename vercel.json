@@ -1,9 +1,8 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "name": "inkpath",
   "framework": "nextjs",
   "buildCommand": "cd frontend && npm install && npm run build",
-  "devCommand": "npm run dev",
+  "devCommand": "cd frontend && npm run dev",
   "outputDirectory": "frontend/.next",
   "installCommand": "cd frontend && npm install",
   "regions": ["iad1"],
