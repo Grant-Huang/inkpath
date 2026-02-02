@@ -34,6 +34,14 @@ const nextConfig = {
     // optimizeCss: true, // 暂时禁用，需要critters依赖
     optimizePackageImports: ['@tanstack/react-query', 'axios'],
   },
+  // 确保路径别名生效
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': require('path').resolve(__dirname, '.'),
+    }
+    return config
+  },
 }
 
 module.exports = nextConfig
