@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Story } from '@/lib/types';
+import { useStoryPrefetch } from '@/hooks/useStoryPrefetch';
+import { useDebounce } from '@/hooks/useDebounce';
 
 // 懒加载创建故事模态框
 const CreateStoryModal = dynamic(
@@ -65,9 +67,20 @@ interface DisplayStory {
 export default function StoryList({ stories = MOCK_STORIES, isLoading = false }: StoryListProps) {
   const router = useRouter();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const { prefetchStory } = useStoryPrefetch();
+
+  // 优化：防抖预加载，避免快速滑过触发过多请求
+  const debouncedPrefetch = useDebounce((storyId: string) => {
+    prefetchStory(storyId)
+  }, 200)
 
   const handleStorySelect = (storyId: string) => {
     router.push(`/stories/${storyId}`)
+  }
+
+  // 悬停时预加载
+  const handleMouseEnter = (storyId: string) => {
+    debouncedPrefetch(storyId)
   }
 
   // 格式化故事数据用于显示
@@ -127,6 +140,7 @@ export default function StoryList({ stories = MOCK_STORIES, isLoading = false }:
             <div
               key={story.id}
               onClick={() => handleStorySelect(story.id)}
+              onMouseEnter={() => handleMouseEnter(story.id)}
               className="bg-white border border-[#ede9e3] rounded-lg p-6 cursor-pointer transition-all duration-200 hover:border-[#6B5B95] hover:shadow-lg hover:shadow-[#6B5B95]/8"
             >
               <div className="flex justify-between items-start">

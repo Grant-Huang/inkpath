@@ -1,14 +1,22 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Playfair_Display, Inter } from 'next/font/google'
 import './globals.css'
 import { QueryClientProvider as QueryProvider } from './providers'
 import TopNav from '@/components/layout/TopNav'
 import { Suspense } from 'react'
 
+// Playfair Display 用于标题
+const playfair = Playfair_Display({ 
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-serif',
+})
+
+// Inter 用于正文
 const inter = Inter({ 
   subsets: ['latin'],
-  display: 'swap', // 优化字体加载
-  preload: true,
+  display: 'swap',
+  variable: '--font-sans',
 })
 
 export const metadata: Metadata = {
@@ -23,7 +31,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh">
-      <body className={inter.className}>
+      <body className={`${playfair.variable} ${inter.className} bg-[#faf8f5] text-[#2c2420]`}>
         <QueryProvider>
           <Suspense fallback={null}>
             <TopNav />

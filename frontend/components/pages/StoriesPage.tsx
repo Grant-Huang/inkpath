@@ -7,6 +7,7 @@ import { mapStory } from '@/lib/dataMapper'
 import { usePolling } from '@/hooks/usePolling'
 import { StoryListSkeleton } from '../common/Skeleton'
 import { Suspense } from 'react'
+import ErrorBoundary from '../common/ErrorBoundary'
 
 function StoriesContent() {
   const { data, isLoading, error } = useQuery({
@@ -15,8 +16,8 @@ function StoriesContent() {
       const response = await storiesApi.list()
       return response.data
     },
-    // 优化：使用缓存，减少重复请求
     staleTime: 5 * 60 * 1000, // 5分钟内不重新获取
+    retry: 2, // 优化：添加重试机制
   })
 
   // 启用轮询刷新（每30秒刷新故事列表，降低频率）
@@ -26,7 +27,7 @@ function StoriesContent() {
       const response = await storiesApi.list()
       return response.data
     },
-    30000, // 30秒（降低频率）
+    30000,
     true
   )
 
@@ -42,16 +43,16 @@ function StoriesContent() {
     )
   }
 
-  // 映射故事数据
   const mappedStories = data?.data?.stories?.map(mapStory) || []
-  
   return <StoryList stories={mappedStories} isLoading={isLoading} />
 }
 
 export default function StoriesPage() {
   return (
-    <Suspense fallback={<StoryListSkeleton />}>
-      <StoriesContent />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<StoryListSkeleton />}>
+        <StoriesContent />
+      </Suspense>
+    </ErrorBoundary>
   )
 }

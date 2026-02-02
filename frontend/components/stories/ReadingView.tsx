@@ -184,7 +184,7 @@ interface ReadingViewProps {
   segments?: any[];
   comments?: any[];
   summary?: any;
-  selectedBranchId?: string;
+  selectedBranchId?: string | null; // 优化：允许null
   onBranchSelect?: (branchId: string) => void;
   storyId?: string;
   onBack?: () => void;
@@ -312,8 +312,6 @@ export default function ReadingView({
 
           {discussionOpen && selectedBranchId ? (
             <DiscussionPanelWithAPI branchId={selectedBranchId} comments={comments} />
-          ) : discussionOpen ? (
-            <DiscussionPanel comments={comments} />
           ) : null}
         </div>
       </div>

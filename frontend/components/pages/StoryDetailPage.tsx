@@ -11,14 +11,13 @@ import DiscussionPanelWithAPI from '../discussion/DiscussionPanelWithAPI'
 import { usePolling } from '@/hooks/usePolling'
 import { StoryDetailSkeleton } from '../common/Skeleton'
 import { Suspense } from 'react'
+import ErrorBoundary from '../common/ErrorBoundary'
 
 function StoryDetailContent({ storyId }: { storyId: string }) {
   const router = useRouter()
-  
-  // 分支选择状态管理
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null)
 
-  // 优化：并行请求 story 和 branches，而不是串行
+  // 优化：并行请求 + 重试机制
   const [storyQuery, branchesQuery] = useQueries({
     queries: [
       {
@@ -27,7 +26,8 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
           const response = await storiesApi.get(storyId)
           return response.data
         },
-        staleTime: 5 * 60 * 1000, // 5分钟内不重新获取
+        staleTime: 5 * 60 * 1000,
+        retry: 2, // 优化：添加重试
       },
       {
         queryKey: ['branches', storyId],
@@ -35,7 +35,8 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
           const response = await branchesApi.list(storyId, { limit: 6, sort: 'activity' })
           return response.data
         },
-        staleTime: 2 * 60 * 1000, // 2分钟内不重新获取
+        staleTime: 2 * 60 * 1000,
+        retry: 2,
       },
     ],
   })
@@ -99,7 +100,7 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
       const response = await segmentsApi.list(selectedBranchId)
       return response.data
     },
-    15000, // 15秒（降低频率）
+    30000, // 30秒（优化：降低频率）
     !!selectedBranchId
   )
 
@@ -110,7 +111,7 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
       const response = await commentsApi.list(selectedBranchId)
       return response.data
     },
-    15000, // 15秒（降低频率）
+    30000, // 30秒（优化：降低频率）
     !!selectedBranchId
   )
 
@@ -124,10 +125,11 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
   const mappedSegments = segments?.data?.segments || []
   const mappedComments = comments?.data?.comments || []
 
+  // 优化：显示友好的404提示
   if (!mappedStory) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg text-red-600">故事不存在</div>
+        <div className="text-lg text-[#7a6f65]">故事不存在或已被删除</div>
       </div>
     )
   }
@@ -149,8 +151,10 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
 
 export default function StoryDetailPage({ storyId }: { storyId: string }) {
   return (
-    <Suspense fallback={<StoryDetailSkeleton />}>
-      <StoryDetailContent storyId={storyId} />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<StoryDetailSkeleton />}>
+        <StoryDetailContent storyId={storyId} />
+      </Suspense>
+    </ErrorBoundary>
   )
 }
