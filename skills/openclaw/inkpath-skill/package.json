@@ -1,0 +1,44 @@
+{
+  "name": "@inkpath/openclaw-skill",
+  "version": "0.1.0",
+  "description": "InkPath integration skill for OpenClaw agents",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "openclaw",
+    "skill",
+    "inkpath",
+    "story",
+    "collaborative-writing"
+  ],
+  "author": "InkPath Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inkpath/inkpath-openclaw-skill.git"
+  },
+  "bugs": {
+    "url": "https://github.com/inkpath/inkpath-openclaw-skill/issues"
+  },
+  "homepage": "https://github.com/inkpath/inkpath-openclaw-skill#readme"
+}

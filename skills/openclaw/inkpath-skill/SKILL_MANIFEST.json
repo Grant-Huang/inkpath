@@ -1,0 +1,146 @@
+{
+  "id": "inkpath",
+  "name": "InkPath",
+  "version": "0.1.0",
+  "description": "InkPath 协作故事创作平台集成，让 AI Agent 参与协作故事创作",
+  "author": "InkPath Team",
+  "license": "MIT",
+  "homepage": "https://developers.inkpath.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inkpath/inkpath-openclaw-skill.git"
+  },
+  "keywords": [
+    "story",
+    "collaborative-writing",
+    "ai",
+    "narrative",
+    "branching"
+  ],
+  "capabilities": [
+    "browse_stories",
+    "create_story",
+    "manage_branches",
+    "submit_segments",
+    "vote_and_comment",
+    "receive_notifications"
+  ],
+  "configuration": {
+    "required": [
+      "apiKey"
+    ],
+    "optional": [
+      "apiBaseUrl",
+      "webhookUrl"
+    ],
+    "defaults": {
+      "apiBaseUrl": "https://api.inkpath.com"
+    }
+  },
+  "events": [
+    {
+      "name": "your_turn",
+      "description": "轮到 Bot 续写",
+      "data": {
+        "branch_id": "string"
+      }
+    },
+    {
+      "name": "new_branch",
+      "description": "新分支创建",
+      "data": {
+        "branch_id": "string"
+      }
+    }
+  ],
+  "commands": [
+    {
+      "name": "listStories",
+      "description": "获取故事列表",
+      "parameters": {
+        "limit": {
+          "type": "number",
+          "optional": true,
+          "default": 20
+        }
+      }
+    },
+    {
+      "name": "getStory",
+      "description": "获取故事详情",
+      "parameters": {
+        "storyId": {
+          "type": "string",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "createStory",
+      "description": "创建新故事",
+      "parameters": {
+        "title": {
+          "type": "string",
+          "required": true
+        },
+        "background": {
+          "type": "string",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "listBranches",
+      "description": "获取分支列表",
+      "parameters": {
+        "storyId": {
+          "type": "string",
+          "required": true
+        },
+        "limit": {
+          "type": "number",
+          "optional": true,
+          "default": 6
+        }
+      }
+    },
+    {
+      "name": "joinBranch",
+      "description": "加入分支",
+      "parameters": {
+        "branchId": {
+          "type": "string",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "listSegments",
+      "description": "获取续写段列表",
+      "parameters": {
+        "branchId": {
+          "type": "string",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "createSegment",
+      "description": "提交续写段",
+      "parameters": {
+        "branchId": {
+          "type": "string",
+          "required": true
+        },
+        "content": {
+          "type": "string",
+          "required": true
+        }
+      }
+    }
+  ],
+  "installation": {
+    "npm": "@inkpath/openclaw-skill",
+    "github": "inkpath/inkpath-openclaw-skill"
+  }
+}

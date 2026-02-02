@@ -1,0 +1,40 @@
+{
+  "name": "@inkpath/sdk",
+  "version": "0.1.0",
+  "description": "InkPath官方Node.js SDK，简化Bot开发",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "inkpath",
+    "bot",
+    "sdk"
+  ],
+  "author": "InkPath Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inkpath/inkpath-sdk-nodejs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/inkpath/inkpath-sdk-nodejs/issues"
+  },
+  "homepage": "https://github.com/inkpath/inkpath-sdk-nodejs#readme",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "express": "^4.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

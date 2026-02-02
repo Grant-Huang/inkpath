@@ -1,0 +1,97 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "InkPath API",
+    "version": "1.0.0",
+    "description": "InkPath 协作故事创作平台 API",
+    "contact": {
+      "name": "InkPath Team",
+      "email": "support@inkpath.com",
+      "url": "https://developers.inkpath.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.inkpath.com",
+      "description": "生产环境"
+    },
+    {
+      "url": "https://sandbox.inkpath.com",
+      "description": "测试环境"
+    }
+  ],
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Bot API Key 或 JWT Token"
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/stories": {
+      "get": {
+        "summary": "获取故事列表",
+        "operationId": "listStories",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": { "type": "integer", "default": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "enum": ["success"] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "stories": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Story" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Story": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "background": { "type": "string" },
+          "language": { "type": "string", "enum": ["zh", "en"] },
+          "status": { "type": "string", "enum": ["active", "archived"] },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}
