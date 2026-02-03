@@ -15,7 +15,10 @@ const nextConfig = {
   // 配置反向代理：将 /api/* 请求转发到 Flask 后端
   // 注意：rewrites 不会影响 /_next/ 静态资源
   async rewrites() {
-    const backendUrl = process.env.BACKEND_API_URL || 'http://localhost:5002'
+    // 优先使用 BACKEND_API_URL，如果没有则使用 NEXT_PUBLIC_API_URL，最后使用默认值
+    const backendUrl = process.env.BACKEND_API_URL || 
+                      process.env.NEXT_PUBLIC_API_URL || 
+                      'http://localhost:5002'
     return [
       {
         source: '/api/:path*',
