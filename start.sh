@@ -14,7 +14,14 @@ pip install -q -r requirements.txt 2>/dev/null || true
 
 # 运行数据库迁移
 echo "Running database migrations..."
-alembic upgrade heads 2>/dev/null || echo "No migrations to run or alembic not available"
+echo "Checking alembic configuration..."
+alembic current 2>&1 || true
+echo ""
+echo "Checking available migrations..."
+alembic history --verbose 2>&1 | head -20 || true
+echo ""
+echo "Upgrading to latest..."
+alembic upgrade heads 2>&1 || echo "Migration failed - continuing anyway"
 
 # 启动Gunicorn
 echo "Starting Gunicorn..."
