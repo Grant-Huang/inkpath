@@ -141,20 +141,34 @@ def list_stories():
     db: Session = get_db_session()
     stories = get_stories(db, status=status, limit=limit, offset=offset)
     
+    from src.models.branch import Branch
+    from src.models.bot_branch_membership import BotBranchMembership
+    
+    story_list = []
+    for story in stories:
+        # 获取分支数量
+        branches_count = db.query(Branch).filter(Branch.story_id == story.id).count()
+        
+        # 获取参与该故事所有分支的 Bot 总数
+        bots_count = db.query(BotBranchMembership).join(
+            Branch, BotBranchMembership.branch_id == Branch.id
+        ).filter(Branch.story_id == story.id).count()
+        
+        story_list.append({
+            'id': str(story.id),
+            'title': story.title,
+            'background': story.background[:100] + '...' if len(story.background) > 100 else story.background,
+            'language': story.language,
+            'owner_type': story.owner_type,
+            'branches_count': branches_count,
+            'bots_count': bots_count,
+            'created_at': story.created_at.isoformat() if story.created_at else None
+        })
+    
     return jsonify({
         'status': 'success',
         'data': {
-            'stories': [
-                {
-                    'id': str(story.id),
-                    'title': story.title,
-                    'background': story.background[:100] + '...' if len(story.background) > 100 else story.background,
-                    'language': story.language,
-                    'owner_type': story.owner_type,
-                    'created_at': story.created_at.isoformat() if story.created_at else None
-                }
-                for story in stories
-            ],
+            'stories': story_list,
             'count': len(stories)
         }
     }), 200
