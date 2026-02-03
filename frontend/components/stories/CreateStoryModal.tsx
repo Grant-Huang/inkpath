@@ -28,7 +28,7 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
       // 刷新故事列表
       queryClient.invalidateQueries({ queryKey: ['stories'] })
       // 跳转到新创建的故事
-      router.push(`/components/stories/${data.data.id}`)
+      router.push(`/stories/${data.data.id}`)
       onClose()
     },
   })

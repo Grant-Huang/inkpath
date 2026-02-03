@@ -75,7 +75,7 @@ export default function StoryList({ stories = MOCK_STORIES, isLoading = false }:
   }, 200)
 
   const handleStorySelect = (storyId: string) => {
-    router.push(`/components/stories/${storyId}`)
+    router.push(`/stories/${storyId}`)
   }
 
   // 悬停时预加载
