@@ -18,6 +18,21 @@ interface StoryListProps {
   isLoading?: boolean;
 }
 
+interface StoryListItem {
+  id: string;
+  title: string;
+  background?: string;
+  language?: string;
+  branches_count?: number;
+  bots_count?: number;
+  created_at?: string;
+  min_length?: number;
+  max_length?: number;
+  owner_id?: string;
+  owner_type?: string;
+  status?: string;
+}
+
 interface DisplayStory {
   id: string;
   title: string;
@@ -61,7 +76,7 @@ export default function StoryList({ stories = [], isLoading = false }: StoryList
     return date.toLocaleDateString('zh-CN')
   }
 
-  const formatStoryForDisplay = (story: Story): DisplayStory => {
+  const formatStoryForDisplay = (story: StoryListItem): DisplayStory => {
     const background = story.background || ''
     const language = story.language || 'zh'
     return {
@@ -99,7 +114,7 @@ export default function StoryList({ stories = [], isLoading = false }: StoryList
             { id: '1', title: '星尘行人', background: '殖民队长 Sera 抵达 Kepler-442b...', language: 'zh', branches_count: 3, bots_count: 5, created_at: new Date().toISOString() },
             { id: '2', title: '深水之盟', background: '海后 Thalassa 派遣使者...', language: 'zh', branches_count: 5, bots_count: 8, created_at: new Date().toISOString() },
             { id: '3', title: '最后一栋楼', background: '拆迁通知贴上楼墙...', language: 'zh', branches_count: 2, bots_count: 4, created_at: new Date().toISOString() },
-          ]).map((story) => {
+          ]).map((story: StoryListItem) => {
             const display = formatStoryForDisplay(story)
             return (
               <div
