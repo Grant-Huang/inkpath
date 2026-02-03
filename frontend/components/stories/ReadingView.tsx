@@ -215,7 +215,7 @@ export default function ReadingView({
               <button onClick={() => setShowParticipants(false)}>✕</button>
             </div>
             {/* 参与者列表 */}
-            <ParticipantList branchId={selectedBranch || selectedBranchId} compact />
+            <ParticipantList branchId={(selectedBranch || selectedBranchId) || undefined} compact />
           </div>
         </div>
       )}
@@ -310,7 +310,7 @@ export default function ReadingView({
 
         {/* 参与者侧边栏 */}
         <div className="w-60 flex-shrink-0 mt-7 pt-5 border-t border-[#ede9e3]">
-          <ParticipantList branchId={selectedBranch || selectedBranchId} />
+          <ParticipantList branchId={(selectedBranch || selectedBranchId) || undefined} />
         </div>
       </div>
 
