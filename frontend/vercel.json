@@ -9,6 +9,6 @@
   "regions": ["iad1"],
   "env": {
     "NEXT_PUBLIC_API_URL": "https://inkpath-api.onrender.com",
-    "NEXT_PUBLIC_DEMO_MODE": "false"
+    "NEXT_PUBLIC_DEMO_MODE": "true"
   }
 }
