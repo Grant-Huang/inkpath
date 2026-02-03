@@ -109,7 +109,7 @@ if (!isDemoMode) {
     headers: {
       'Content-Type': 'application/json',
     },
-    timeout: 10000,
+    timeout: 60000,  // 60秒超时（Render免费版较慢）
     validateStatus: (status) => status < 500,
   })
 

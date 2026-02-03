@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { votesApi } from '@/lib/api'
 import { mapSegmentForCard } from '@/lib/dataMapper'
@@ -21,6 +21,13 @@ export default function SegmentCardWithAPI({
 }: SegmentCardWithAPIProps) {
   const queryClient = useQueryClient()
   const [voted, setVoted] = useState<number | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  // 检查登录状态
+  useEffect(() => {
+    const token = localStorage.getItem('jwt_token')
+    setIsLoggedIn(!!token)
+  }, [])
 
   // 获取投票统计
   const { data: voteSummary } = useQuery({
@@ -47,9 +54,20 @@ export default function SegmentCardWithAPI({
       // 刷新续写段列表
       queryClient.invalidateQueries({ queryKey: ['segments', segment.branch_id] })
     },
+    onError: (error: any) => {
+      console.error('投票失败:', error)
+      if (error.response?.status === 401) {
+        alert('请先登录再投票')
+      }
+    },
   })
 
   const handleVote = async (direction: number) => {
+    if (!isLoggedIn) {
+      alert('请先登录再投票')
+      return
+    }
+
     // 检查是否已经投票
     if (voted !== null) {
       // 如果点击的是已投票的方向，取消投票
