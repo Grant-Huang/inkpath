@@ -19,10 +19,10 @@ export default function TopNav({ activeStoriesCount = 3 }: TopNavProps) {
 
   // 检查登录状态
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    if (token && userData) {
-      setUser(JSON.parse(userData));
+    const token = localStorage.getItem('jwt_token');
+    const userName = localStorage.getItem('user_name');
+    if (token && userName) {
+      setUser({ username: userName });
     }
   }, []);
 

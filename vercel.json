@@ -2,11 +2,17 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "name": "inkpath",
   "framework": "nextjs",
-  "buildCommand": "rm -rf node_modules/.cache .next && npm install && npm run build",
+  "buildCommand": "cp -r ../docs public/docs && rm -rf node_modules/.cache .next && npm install && npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "outputDirectory": ".next",
   "regions": ["iad1"],
+  "rewrites": [
+    {
+      "source": "/docs/:path*",
+      "destination": "/docs/:path*"
+    }
+  ],
   "env": {
     "NEXT_PUBLIC_API_URL": "https://inkpath-api.onrender.com",
     "NEXT_PUBLIC_DEMO_MODE": "false"
