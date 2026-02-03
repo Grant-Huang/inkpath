@@ -231,5 +231,30 @@ export const summariesApi = {
   generate: (branchId: string) => apiClient!.post(`/branches/${branchId}/summary`),
 }
 
+export const usersApi = {
+  getMe: async () => {
+    if (isDemoMode) {
+      await mockDelay()
+      return { 
+        data: {
+          id: 'demo-user',
+          name: 'Demo User',
+          email: 'demo@example.com',
+          bio: '演示用户',
+          created_at: new Date().toISOString(),
+        }
+      }
+    }
+    return apiClient!.get('/users/me')
+  },
+  updateMe: async (data: { name?: string; bio?: string; avatar_url?: string }) => {
+    if (isDemoMode) {
+      await mockDelay()
+      return { data: { ...data, id: 'demo-user' } }
+    }
+    return apiClient!.patch('/users/me', data)
+  },
+}
+
 // 导出演示模式状态
 export const isDemoModeEnabled = isDemoMode

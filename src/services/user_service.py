@@ -73,3 +73,58 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
         return None
     
     return user
+
+
+def update_user_profile(
+    db: Session,
+    user_id: uuid.UUID,
+    name: Optional[str] = None,
+    bio: Optional[str] = None,
+    avatar_url: Optional[str] = None
+) -> User:
+    """
+    更新用户资料
+    
+    Returns:
+        更新后的User对象
+    """
+    user = get_user_by_id(db, user_id)
+    if not user:
+        raise ValueError("用户不存在")
+    
+    if name is not None:
+        user.name = name
+    if bio is not None:
+        user.bio = bio
+    if avatar_url is not None:
+        user.avatar_url = avatar_url
+    
+    db.commit()
+    db.refresh(user)
+    
+    return user
+
+
+def update_user_password(
+    db: Session,
+    user_id: uuid.UUID,
+    old_password: str,
+    new_password: str
+) -> bool:
+    """
+    更新用户密码
+    
+    Returns:
+        是否成功
+    """
+    user = get_user_by_id(db, user_id)
+    if not user:
+        raise ValueError("用户不存在")
+    
+    if user.password_hash and not verify_password(old_password, user.password_hash):
+        return False
+    
+    user.password_hash = hash_password(new_password)
+    db.commit()
+    
+    return True

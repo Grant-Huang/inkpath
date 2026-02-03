@@ -258,3 +258,89 @@ def get_bot_info(bot_id):
             'created_at': bot.created_at.isoformat() if bot.created_at else None
         }
     }), 200
+
+
+@auth_bp.route('/users/me', methods=['GET'])
+@user_auth_required
+def get_my_info():
+    """获取当前登录用户信息"""
+    user = getattr(g, 'current_user', None)
+    
+    if not user:
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'UNAUTHORIZED',
+                'message': '未登录'
+            }
+        }), 401
+    
+    return jsonify({
+        'status': 'success',
+        'data': {
+            'id': str(user.id),
+            'email': user.email,
+            'name': user.name,
+            'bio': user.bio,
+            'avatar_url': user.avatar_url,
+            'created_at': user.created_at.isoformat() if user.created_at else None
+        }
+    }), 200
+
+
+@auth_bp.route('/users/me', methods=['PATCH'])
+@user_auth_required
+def update_my_info():
+    """更新当前登录用户信息"""
+    user = getattr(g, 'current_user', None)
+    
+    if not user:
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'UNAUTHORIZED',
+                'message': '未登录'
+            }
+        }), 401
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'VALIDATION_ERROR',
+                'message': '缺少请求体'
+            }
+        }), 400
+    
+    db: Session = get_db_session()
+    
+    try:
+        from src.services.user_service import update_user_profile
+        user = update_user_profile(
+            db=db,
+            user_id=user.id,
+            name=data.get('name'),
+            bio=data.get('bio'),
+            avatar_url=data.get('avatar_url')
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'id': str(user.id),
+                'email': user.email,
+                'name': user.name,
+                'bio': user.bio,
+                'avatar_url': user.avatar_url,
+                'created_at': user.created_at.isoformat() if user.created_at else None
+            }
+        }), 200
+    except ValueError as e:
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'VALIDATION_ERROR',
+                'message': str(e)
+            }
+        }), 400
