@@ -25,6 +25,7 @@ interface SegmentCardProps {
   onVote?: (direction: number) => void;
   voted?: number | null;
   isLoading?: boolean;
+  compact?: boolean;
 }
 
 export default function SegmentCard({ 
@@ -33,75 +34,139 @@ export default function SegmentCard({
   onCreateBranch,
   onVote,
   voted: externalVoted,
-  isLoading = false
+  isLoading = false,
+  compact = false,
 }: SegmentCardProps) {
   const [voted, setVoted] = useState<number | null>(externalVoted || null);
   const [voteStats, setVoteStats] = useState<VoteStats>(segment.votes);
 
-  // 计算总评分：人类权重1.0，Bot权重0.5（平均）
+  // 计算总评分
   const calculateTotalScore = () => {
-    const humanWeight = 1.0;
-    const botWeight = 0.5; // 实际应该是0.3-0.8，这里用平均值
     const score =
-      voteStats.humanUp * humanWeight -
-      voteStats.humanDown * humanWeight +
-      voteStats.botUp * botWeight -
-      voteStats.botDown * botWeight;
+      voteStats.humanUp * 1.0 -
+      voteStats.humanDown * 1.0 +
+      voteStats.botUp * 0.5 -
+      voteStats.botDown * 0.5;
     return score.toFixed(1);
   };
 
   const handleVote = (direction: number) => {
-    // 如果提供了外部投票处理函数，使用它
     if (onVote) {
       onVote(direction)
       return
     }
 
-    // 否则使用本地状态（用于演示）
+    // 本地投票逻辑
+    const newStats = { ...voteStats };
     const isHuman = true;
     
-    if (isHuman) {
-      const newStats = { ...voteStats };
-      
-      if (direction === 1) {
-        // 点赞：如果之前点过踩，先取消点踩
-        if (newStats.humanDown > 0) {
-          newStats.humanDown = Math.max(0, newStats.humanDown - 1);
-        }
+    if (direction === 1) {
+      if (isHuman) {
+        if (newStats.humanDown > 0) newStats.humanDown = Math.max(0, newStats.humanDown - 1);
         newStats.humanUp += 1;
-        setVoted(1);
       } else {
-        // 点踩：如果之前点过赞，先取消点赞
-        if (newStats.humanUp > 0) {
-          newStats.humanUp = Math.max(0, newStats.humanUp - 1);
-        }
-        newStats.humanDown += 1;
-        setVoted(-1);
-      }
-      
-      setVoteStats(newStats);
-    } else {
-      // Bot投票逻辑（如果需要）
-      const newStats = { ...voteStats };
-      
-      if (direction === 1) {
-        if (newStats.botDown > 0) {
-          newStats.botDown = Math.max(0, newStats.botDown - 1);
-        }
+        if (newStats.botDown > 0) newStats.botDown = Math.max(0, newStats.botDown - 1);
         newStats.botUp += 1;
-        setVoted(1);
-      } else {
-        if (newStats.botUp > 0) {
-          newStats.botUp = Math.max(0, newStats.botUp - 1);
-        }
-        newStats.botDown += 1;
-        setVoted(-1);
       }
-      
-      setVoteStats(newStats);
+      setVoted(1);
+    } else {
+      if (isHuman) {
+        if (newStats.humanUp > 0) newStats.humanUp = Math.max(0, newStats.humanUp - 1);
+        newStats.humanDown += 1;
+      } else {
+        if (newStats.botUp > 0) newStats.botUp = Math.max(0, newStats.botUp - 1);
+        newStats.botDown += 1;
+      }
+      setVoted(-1);
     }
+    
+    setVoteStats(newStats);
   };
 
+  // =====================
+  // 移动端紧凑布局
+  // =====================
+  if (compact) {
+    return (
+      <div className="relative pl-8 pb-4">
+        {/* 时间线 */}
+        <div className="absolute left-[11px] top-0 bottom-0 w-px bg-[#ede9e3]" />
+        <div className="absolute left-[7px] top-2 w-2.5 h-2.5 rounded-full bg-[#6B5B95]" />
+        
+        {/* 内容 */}
+        <div className="space-y-2">
+          {/* 标题行 */}
+          <div className="flex items-center gap-2">
+            <span 
+              className="text-xs font-semibold" 
+              style={{ color: segment.botColor }}
+            >
+              {segment.bot}
+            </span>
+            <span className="text-[10px] text-[#a89080]">{segment.time}</span>
+            {isLatest && (
+              <span className="text-[9px] px-1.5 rounded bg-[#6B5B95] text-white">
+                最新
+              </span>
+            )}
+          </div>
+          
+          {/* 内容 */}
+          <p className="text-xs text-[#3d342c] leading-relaxed">
+            {segment.content}
+          </p>
+          
+          {/* 操作行 */}
+          <div className="flex items-center gap-3">
+            {/* 投票 */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handleVote(1)}
+                className={`w-6 h-6 rounded flex items-center justify-center text-xs ${
+                  voted === 1 
+                    ? 'bg-[#eef5ec] border border-[#6aaa64]' 
+                    : 'bg-[#f5f2ef] border border-[#ede9e3]'
+                }`}
+              >
+                👍
+              </button>
+              <span className="text-[10px] text-[#4a8a44]">{voteStats.humanUp}</span>
+              <button
+                onClick={() => handleVote(-1)}
+                className={`w-6 h-6 rounded flex items-center justify-center text-xs ${
+                  voted === -1 
+                    ? 'bg-[#faf0ee] border border-[#d4756a]' 
+                    : 'bg-[#f5f2ef] border border-[#ede9e3]'
+                }`}
+              >
+                👎
+              </button>
+              <span className="text-[10px] text-[#b8574e]">{voteStats.humanDown}</span>
+            </div>
+            
+            {/* 评分 */}
+            <span className="text-[10px] text-[#7a6f65]">
+              评分: <span className="font-medium">{calculateTotalScore()}</span>
+            </span>
+            
+            {/* 分支按钮 */}
+            {onCreateBranch && (
+              <button
+                onClick={() => onCreateBranch(segment.id)}
+                className="ml-auto text-[10px] text-[#6B5B95] hover:underline"
+              >
+                🔀 分支
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =====================
+  // 桌面端布局（保持原样）
+  // =====================
   return (
     <div className="relative flex gap-4 pb-6">
       <div className="absolute left-[15px] top-7 bottom-0 w-px bg-[#ede9e3]" />

@@ -15,6 +15,7 @@ interface BranchTreeProps {
   selectedBranch: string;
   onSelect: (branchId: string) => void;
   onCreateBranch: () => void;
+  compact?: boolean;
 }
 
 export default function BranchTree({
@@ -22,7 +23,71 @@ export default function BranchTree({
   selectedBranch,
   onSelect,
   onCreateBranch,
+  compact = false,
 }: BranchTreeProps) {
+  // =====================
+  // 移动端紧凑布局
+  // =====================
+  if (compact) {
+    return (
+      <div className="space-y-1">
+        {(branches || []).map((branch) => {
+          const isSelected = selectedBranch === branch.id;
+          const indent = branch.parentId ? 16 : 0;
+
+          return (
+            <div key={branch.id} className="relative">
+              {branch.parentId && (
+                <div className="absolute left-3 top-0 w-3 h-full border-l-2 border-b-2 border-[#d9d3ca] rounded-bl-lg pointer-events-none" />
+              )}
+              <div
+                onClick={() => onSelect(branch.id)}
+                className={`${indent > 0 ? 'ml-6' : 'ml-0'} px-3 py-2 rounded-lg cursor-pointer transition-all ${
+                  isSelected
+                    ? 'bg-[#f0ecf7]'
+                    : 'hover:bg-[#faf8f5]'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                      branch.isMain
+                        ? 'bg-[#6B5B95]'
+                        : 'bg-[#E07A5F]'
+                    }`}
+                  />
+                  <span
+                    className={`text-xs font-medium ${
+                      isSelected ? 'text-[#2c2420]' : 'text-[#5a4f45]'
+                    }`}
+                  >
+                    {branch.label}
+                  </span>
+                  {branch.isMain && (
+                    <span className="text-[9px] px-1 rounded bg-[#ebe7f5] text-[#6B5B95]">
+                      主线
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* 移动端添加按钮 */}
+        <button
+          onClick={onCreateBranch}
+          className="w-full mt-2 px-3 py-2 border border-dashed border-[#d9d3ca] rounded-lg text-xs text-[#a89080] hover:border-[#E07A5F] hover:text-[#E07A5F]"
+        >
+          + 创建分支
+        </button>
+      </div>
+    );
+  }
+
+  // =====================
+  // 桌面端布局（保持原样）
+  // =====================
   return (
     <div className="w-60 flex-shrink-0">
       <div className="mb-5">
@@ -31,7 +96,7 @@ export default function BranchTree({
         </h3>
       </div>
       <div className="space-y-0">
-        {branches.map((branch) => {
+        {(branches || []).map((branch) => {
           const isSelected = selectedBranch === branch.id;
           const indent = branch.parentId ? 32 : 0;
 
