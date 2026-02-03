@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { branchesApi } from '@/lib/api';
 
 // 懒加载
 const DiscussionPanelWithAPI = dynamic(
@@ -59,7 +58,6 @@ export default function ReadingView({
   const [showCreateBranchModal, setShowCreateBranchModal] = useState(false);
   const [createBranchSegmentId, setCreateBranchSegmentId] = useState<string | null>(null);
   const [showBranches, setShowBranches] = useState(true);
-  const [showParticipants, setShowParticipants] = useState(false);
 
   // 同步分支状态
   useEffect(() => {
@@ -106,12 +104,6 @@ export default function ReadingView({
           <h1 className="text-base font-bold text-[#2c2420] truncate max-w-[200px]">
             {story?.title || '加载中...'}
           </h1>
-          <button 
-            onClick={() => setShowParticipants(!showParticipants)}
-            className="w-8 h-8 rounded-full bg-[#f0ecf7] flex items-center justify-center text-[#6B5B95]"
-          >
-            👥
-          </button>
         </div>
         
         {/* 折叠式分支选择 */}
@@ -197,28 +189,6 @@ export default function ReadingView({
           </div>
         )}
       </div>
-
-      {/* ===================== */}
-      {/* 参与者弹窗（移动端） */}
-      {/* ===================== */}
-      {showParticipants && (
-        <div 
-          className="lg:hidden fixed inset-0 bg-black/50 z-50"
-          onClick={() => setShowParticipants(false)}
-        >
-          <div 
-            className="absolute right-0 top-0 bottom-0 w-80 bg-white p-4 overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-[#2c2420]">参与者</h3>
-              <button onClick={() => setShowParticipants(false)}>✕</button>
-            </div>
-            {/* 参与者列表 */}
-            <ParticipantList branchId={(selectedBranch || selectedBranchId) || undefined} compact />
-          </div>
-        </div>
-      )}
 
       {/* ===================== */}
       {/* ===================== */}
@@ -307,11 +277,6 @@ export default function ReadingView({
             <DiscussionPanelWithAPI branchId={selectedBranchId} comments={comments} />
           )}
         </div>
-
-        {/* 参与者侧边栏 */}
-        <div className="w-60 flex-shrink-0 mt-7 pt-5 border-t border-[#ede9e3]">
-          <ParticipantList branchId={(selectedBranch || selectedBranchId) || undefined} />
-        </div>
       </div>
 
       {/* 创建分支弹窗 */}
@@ -325,108 +290,6 @@ export default function ReadingView({
           segmentId={createBranchSegmentId}
           branchId={selectedBranch}
         />
-      )}
-    </div>
-  );
-}
-
-// 参与者列表组件
-function ParticipantList({ branchId, compact = false }: { branchId?: string; compact?: boolean }) {
-  const [participants, setParticipants] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (!branchId) {
-      setLoading(false)
-      return
-    }
-
-    const fetchParticipants = async () => {
-      try {
-        const response = await branchesApi.participants(branchId)
-        if (response.data?.participants) {
-          setParticipants(response.data.participants)
-        }
-      } catch (error) {
-        console.error('获取参与者失败:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchParticipants()
-  }, [branchId])
-
-  // 角色翻译
-  const roleTranslations: Record<string, string> = {
-    narrator: '叙述者',
-    challenger: '挑衅者',
-    voice: '声音',
-    participant: '参与者',
-  }
-
-  // 角色颜色映射
-  const roleColors: Record<string, string> = {
-    叙述者: 'bg-[#f0ecf7] text-[#6B5B95]',
-    挑衅者: 'bg-[#faf0ee] text-[#E07A5F]',
-    声音: 'bg-[#e8f0f7] text-[#3D5A80]',
-    participant: 'bg-[#ede9e3] text-[#7a6f65]',
-  }
-
-  // Bot 颜色生成
-  const getBotColor = (name: string) => {
-    const colors = ['#6B5B95', '#E07A5F', '#3D5A80', '#5A7BA0', '#7A9E9F', '#9B7BA0', '#B8860B']
-    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    return colors[hash % colors.length]
-  }
-
-  if (loading) {
-    return (
-      <div className={compact ? 'space-y-2' : 'space-y-1.5'}>
-        <h3 className="text-xs font-semibold text-[#a89080] uppercase tracking-wider mb-3">
-          参与者
-        </h3>
-        <div className="text-xs text-[#a89080]">加载中...</div>
-      </div>
-    )
-  }
-
-  return (
-    <div className={compact ? 'space-y-2' : 'space-y-1.5'}>
-      <h3 className="text-xs font-semibold text-[#a89080] uppercase tracking-wider mb-3">
-        参与者 {participants.length > 0 && `(${participants.length})`}
-      </h3>
-      {participants.length === 0 ? (
-        <div className="text-xs text-[#a89080]">暂无参与者</div>
-      ) : (
-        participants.map((p) => (
-          <div key={p.id} className="flex items-center gap-2">
-            <div
-              className={`${compact ? 'w-6 h-6' : 'w-5.5 h-5.5'} rounded-full flex items-center justify-center text-white text-xs font-semibold relative`}
-              style={{ backgroundColor: getBotColor(p.name) }}
-            >
-              {p.name.charAt(0)}
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-white rounded-full flex items-center justify-center">
-                <span className="text-[6px]">{p.type === 'bot' ? '🤖' : '👤'}</span>
-              </span>
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-1">
-                <span className={`${compact ? 'text-xs' : 'text-xs'} font-medium text-[#3d342c]`}>
-                  {p.name}
-                </span>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
-                  roleColors[roleTranslations[p.role] || roleColors.participant]
-                }`}>
-                  {roleTranslations[p.role] || p.role || '参与者'}
-                </span>
-              </div>
-              <div className={`${compact ? 'text-[10px]' : 'text-[10px]'} text-[#a89080]`}>
-                {p.type === 'bot' ? p.model : '人类参与者'}
-              </div>
-            </div>
-          </div>
-        ))
       )}
     </div>
   );
