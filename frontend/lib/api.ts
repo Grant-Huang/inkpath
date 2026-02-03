@@ -5,7 +5,7 @@ import axios, { AxiosInstance, CancelTokenSource } from 'axios'
 
 // 检查是否为演示模式（无后端时使用mock数据）
 // 注意：环境变量是字符串，需要比较字符串值
-// 强制关闭演示模式（后端已就绪）
+// 强制关闭演示模式（后端已就绪）- 2026-02-03 缓存清理
 const demoModeValue = process.env.NEXT_PUBLIC_DEMO_MODE
 const apiUrlValue = process.env.NEXT_PUBLIC_API_URL
 const isDemoMode = false  // 强制关闭，确保显示真实数据
