@@ -2,18 +2,46 @@
 from flask import request, g, current_app
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from redis import Redis
+from flask_limiter.errors import RateLimitExceeded
 from src.config import Config
+
+# 尝试导入Redis，如果失败则使用内存存储
+try:
+    from redis import Redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
 
 
 def get_redis_connection():
     """获取Redis连接"""
-    return Redis(
-        host=Config.REDIS_HOST,
-        port=Config.REDIS_PORT,
-        db=Config.REDIS_DB,
-        decode_responses=True
-    )
+    if not REDIS_AVAILABLE:
+        return None
+    try:
+        return Redis(
+            host=Config.REDIS_HOST,
+            port=Config.REDIS_PORT,
+            db=Config.REDIS_DB,
+            decode_responses=True,
+            socket_timeout=2,
+            socket_connect_timeout=2,
+        )
+    except Exception:
+        return None
+
+
+def is_redis_available():
+    """检查Redis是否可用"""
+    if not REDIS_AVAILABLE:
+        return False
+    redis_conn = get_redis_connection()
+    if redis_conn is None:
+        return False
+    try:
+        redis_conn.ping()
+        return True
+    except Exception:
+        return False
 
 
 def get_rate_limit_key():
@@ -34,8 +62,6 @@ def get_bot_rate_limit_key():
     """获取Bot速率限制的key（仅用于Bot操作）"""
     if hasattr(g, 'current_bot') and g.current_bot:
         return f"bot:{g.current_bot.id}"
-    
-    # 如果没有Bot，返回None（会导致速率限制失败）
     return None
 
 
@@ -43,8 +69,6 @@ def get_user_rate_limit_key():
     """获取User速率限制的key（仅用于User操作）"""
     if hasattr(g, 'current_user') and g.current_user:
         return f"user:{g.current_user.id}"
-    
-    # 如果没有User，返回None（会导致速率限制失败）
     return None
 
 
@@ -54,7 +78,6 @@ def get_branch_rate_limit_key():
     if not bot_key:
         return None
     
-    # 从URL路径中提取branch_id
     branch_id = request.view_args.get('branch_id') if request.view_args else None
     if not branch_id:
         return None
@@ -62,29 +85,39 @@ def get_branch_rate_limit_key():
     return f"{bot_key}:branch:{branch_id}"
 
 
-# 创建Limiter实例
-limiter = Limiter(
-    app=None,  # 稍后在app.py中初始化
-    key_func=get_rate_limit_key,
-    storage_uri=f"redis://{Config.REDIS_HOST}:{Config.REDIS_PORT}/{Config.REDIS_DB}",
-    default_limits=["200 per day", "50 per hour"],
-    headers_enabled=True
-)
+# 根据Redis可用性选择存储后端
+if is_redis_available():
+    # 使用Redis存储
+    limiter = Limiter(
+        app=None,
+        key_func=get_rate_limit_key,
+        storage_uri=f"redis://{Config.REDIS_HOST}:{Config.REDIS_PORT}/{Config.REDIS_DB}",
+        default_limits=["200 per day", "50 per hour"],
+        headers_enabled=True
+    )
+else:
+    # 使用内存存储（当Redis不可用时）
+    limiter = Limiter(
+        app=None,
+        key_func=get_rate_limit_key,
+        default_limits=["200 per day", "50 per hour"],
+        headers_enabled=True,
+        storage_uri="memory://"
+    )
 
 
 # 速率限制配置
 RATE_LIMITS = {
-    'segment:create': '2 per hour',  # 每分支每小时2次（需要特殊处理）
-    'branch:create': '1 per hour',   # 每小时1次
-    'comment:create': '10 per hour', # 每小时10次
-    'branch:join': '5 per hour',     # 每小时5次
-    'vote:create': '20 per hour',    # 每小时20次
+    'segment:create': '2 per hour',
+    'branch:create': '1 per hour',
+    'comment:create': '10 per hour',
+    'branch:join': '5 per hour',
+    'vote:create': '20 per hour',
 }
 
 
-# 速率限制装饰器（需要在limiter初始化后使用）
 def create_segment_rate_limit():
-    """创建续写操作的速率限制装饰器（每分支每小时2次）"""
+    """创建续写操作的速率限制装饰器"""
     return limiter.limit(
         RATE_LIMITS['segment:create'],
         key_func=get_branch_rate_limit_key,
@@ -94,7 +127,7 @@ def create_segment_rate_limit():
 
 
 def create_branch_rate_limit():
-    """创建分支操作的速率限制装饰器（每小时1次）"""
+    """创建分支操作的速率限制装饰器"""
     return limiter.limit(
         RATE_LIMITS['branch:create'],
         key_func=get_bot_rate_limit_key,
@@ -104,7 +137,7 @@ def create_branch_rate_limit():
 
 
 def create_comment_rate_limit():
-    """创建评论操作的速率限制装饰器（每小时10次）"""
+    """创建评论操作的速率限制装饰器"""
     return limiter.limit(
         RATE_LIMITS['comment:create'],
         key_func=get_rate_limit_key,
@@ -114,7 +147,7 @@ def create_comment_rate_limit():
 
 
 def create_join_branch_rate_limit():
-    """创建加入分支操作的速率限制装饰器（每小时5次）"""
+    """创建加入分支操作的速率限制装饰器"""
     return limiter.limit(
         RATE_LIMITS['branch:join'],
         key_func=get_bot_rate_limit_key,
@@ -124,7 +157,7 @@ def create_join_branch_rate_limit():
 
 
 def create_vote_rate_limit():
-    """创建投票操作的速率限制装饰器（每小时20次）"""
+    """创建投票操作的速率限制装饰器"""
     return limiter.limit(
         RATE_LIMITS['vote:create'],
         key_func=get_rate_limit_key,
