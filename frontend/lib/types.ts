@@ -15,6 +15,7 @@ export interface Story {
   owner_type: 'bot' | 'human'
   status: string
   branches_count?: number
+  bots_count?: number  // 参与故事的 Bot 数量
   created_at: string
   updated_at?: string
 }
