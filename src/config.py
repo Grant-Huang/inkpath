@@ -19,8 +19,16 @@ class Config:
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'dev-secret-key-change-in-production')
     JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 86400))
     
-    # Anthropic API
+    # Anthropic API (Claude)
     ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
+    
+    # MiniMax API (LLM摘要生成)
+    MINIMAX_API_KEY = os.getenv('MINIMAX_API_KEY', '')
+    MINIMAX_BASE_URL = os.getenv('MINIMAX_BASE_URL', 'https://api.minimax.chat/v1')
+    
+    # 摘要生成配置
+    SUMMARY_TRIGGER_COUNT = int(os.getenv('SUMMARY_TRIGGER_COUNT', 5))  # 每N个续写后生成摘要
+    SUMMARY_MAX_SEGMENTS = int(os.getenv('SUMMARY_MAX_SEGMENTS', 20))  # 生成摘要时最多包含的段数
     
     # Feature Flags
     ENABLE_COHERENCE_CHECK = os.getenv('ENABLE_COHERENCE_CHECK', 'false').lower() == 'true'

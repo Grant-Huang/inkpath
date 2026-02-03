@@ -1,14 +1,14 @@
-"""摘要生成服务"""
+"""摘要生成服务 - 使用 MiniMax LLM"""
 import uuid
+import json
+import requests
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from src.models.branch import Branch
 from src.models.segment import Segment
 from src.models.story import Story
 from src.config import Config
-import anthropic
 
 
 def should_generate_summary(db: Session, branch_id: uuid.UUID) -> bool:
@@ -16,8 +16,11 @@ def should_generate_summary(db: Session, branch_id: uuid.UUID) -> bool:
     检查是否应该生成摘要
     
     触发条件：
-    1. 新增段数 >= 3（自上次摘要更新后）
+    1. 新增段数 >= 配置值 SUMMARY_TRIGGER_COUNT（自上次摘要更新后）
     2. 分支创建时（还没有摘要）
+    
+    配置：
+    - SUMMARY_TRIGGER_COUNT: 每N个续写后生成摘要（默认5）
     
     Returns:
         是否应该生成摘要
@@ -30,13 +33,14 @@ def should_generate_summary(db: Session, branch_id: uuid.UUID) -> bool:
     if not branch.summary_updated_at:
         return True
     
-    # 条件2: 新增段数 >= 3
+    # 条件2: 新增段数 >= 配置值
+    trigger_count = getattr(Config, 'SUMMARY_TRIGGER_COUNT', 5)
     new_segments_count = db.query(Segment).filter(
         Segment.branch_id == branch_id,
         Segment.created_at > branch.summary_updated_at
     ).count()
     
-    if new_segments_count >= 3:
+    if new_segments_count >= trigger_count:
         return True
     
     return False
@@ -45,25 +49,27 @@ def should_generate_summary(db: Session, branch_id: uuid.UUID) -> bool:
 def format_segments(segments: list[Segment]) -> str:
     """
     格式化续写段为文本
-    
-    Returns:
-        格式化后的文本
     """
     lines = []
     for seg in segments:
-        lines.append(f"第{seg.sequence_order}段：{seg.content}")
+        lines.append(f"【第{seg.sequence_order}段】\n{seg.content}")
     return "\n\n".join(lines)
 
 
-def generate_summary(
+def generate_summary_with_minimax(
     db: Session,
     branch_id: uuid.UUID,
     force: bool = False
 ) -> Optional[str]:
     """
-    生成分支摘要
+    使用 MiniMax LLM 生成分支摘要
+    
+    配置：
+    - MINIMAX_API_KEY: MiniMax API 密钥
+    - SUMMARY_MAX_SEGMENTS: 生成摘要时最多包含的段数（默认20）
     
     Args:
+        db: 数据库会话
         branch_id: 分支ID
         force: 是否强制生成（忽略触发条件）
     
@@ -82,7 +88,8 @@ def generate_summary(
     if not story:
         return None
     
-    # 获取续写段（最多20段）
+    # 获取续写段
+    max_segments = getattr(Config, 'SUMMARY_MAX_SEGMENTS', 20)
     segments = db.query(Segment).filter(
         Segment.branch_id == branch_id
     ).order_by(Segment.sequence_order.asc()).all()
@@ -90,54 +97,96 @@ def generate_summary(
     if not segments:
         return None
     
-    # 如果段数 > 20，只取最近20段，并使用上次摘要作为前因
+    # 如果段数 > max_segments，只取最近N段，并使用上次摘要作为前因
     previous_summary = ""
-    if len(segments) > 20:
+    start_index = 0
+    if len(segments) > max_segments:
         previous_summary = branch.current_summary or ""
-        segments = segments[-20:]  # 只取最近20段
+        start_index = len(segments) - max_segments
+    
+    recent_segments = segments[start_index:]
     
     # 构建Prompt
-    segments_text = format_segments(segments)
+    story_info = f"""## 故事信息
+标题：{story.title}
+背景：{story.background[:500] if story.background else '无'}
+风格规则：{story.style_rules[:500] if story.style_rules else '无'}
+"""
     
-    prompt = f"""你是一个故事编辑助手。以下是一条进行中的故事分支的续写内容。
+    segments_text = format_segments(recent_segments)
+    
+    prompt = f"""{story_info}
 
-{previous_summary if previous_summary else ""}
+## 前文摘要（如有）
+{previous_summary if previous_segments := recent_segments else '（无）'}
 
-续写内容:
+## 最近续写内容（共{len(recent_segments)}段）
 {segments_text}
 
-请生成一段300-500字的"当前进展摘要"，包含：
-- 故事现在发展到哪里了（情节状态）
-- 当前涉及哪些主要角色及其处境
-- 现在悬而未决的问题或冲突是什么
+请生成一段**300-500字**的故事进展摘要，要求：
+1. 客观描述当前故事发展到哪里了（情节状态）
+2. 列出当前涉及的主要角色及其处境
+3. 说明现在悬而未决的问题或冲突是什么
+4. 语气要简洁，只概述当前进展，不要剧透未来
 
-摘要语气要客观，不要剧透未来，只概述当前。"""
+请直接输出摘要正文，不要有前缀或后缀说明。"""
     
-    # 调用LLM生成摘要
+    # 调用 MiniMax API 生成摘要
     try:
-        if not Config.ANTHROPIC_API_KEY:
-            # 如果没有配置API Key，返回占位符
-            return "摘要生成功能需要配置ANTHROPIC_API_KEY"
+        api_key = getattr(Config, 'MINIMAX_API_KEY', '')
+        if not api_key:
+            return "[需要配置MINIMAX_API_KEY才能生成AI摘要]"
         
-        client = anthropic.Anthropic(api_key=Config.ANTHROPIC_API_KEY)
+        # MiniMax Chat Completion API
+        url = f"{getattr(Config, 'MINIMAX_BASE_URL', 'https://api.minimax.chat/v1')}/text/chatcompletion_v2"
         
-        response = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=500,
-            messages=[{"role": "user", "content": prompt}]
-        )
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
         
-        summary = response.content[0].text
+        payload = {
+            "model": "abab6.5s-chat",  # MiniMax 聊天模型
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "你是一个专业的故事编辑，擅长用简洁客观的语言总结故事进展。"
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "tokens_to_generate": 512,
+            "temperature": 0.5,
+            "top_p": 0.95
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # 解析 MiniMax 响应格式
+        if data.get("base_resp", {}).get("status_code") == 0:
+            summary = data["choices"][0]["message"]["content"]
+        else:
+            # 旧格式兼容
+            summary = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        
+        if not summary:
+            return None
+        
+        # 清理摘要文本（移除可能的引号）
+        summary = summary.strip().strip('"').strip("'")
         
         # 更新数据库
-        branch.current_summary = summary
-        branch.summary_updated_at = datetime.utcnow()
-        branch.summary_covers_up_to = len(segments) if len(segments) <= 20 else len(db.query(Segment).filter(Segment.branch_id == branch_id).count())
-        
-        # 计算实际覆盖的段数（所有段数）
         all_segments_count = db.query(Segment).filter(
             Segment.branch_id == branch_id
         ).count()
+        
+        branch.current_summary = summary
+        branch.summary_updated_at = datetime.utcnow()
         branch.summary_covers_up_to = all_segments_count
         
         db.commit()
@@ -145,11 +194,37 @@ def generate_summary(
         
         return summary
     
+    except requests.exceptions.RequestException as e:
+        import logging
+        logging.error(f"MiniMax API 请求失败: {str(e)}")
+        return None
+    except (KeyError, IndexError, json.JSONDecodeError) as e:
+        import logging
+        logging.error(f"解析 MiniMax 响应失败: {str(e)}")
+        return None
     except Exception as e:
-        # LLM调用失败，不阻塞，返回None
         import logging
         logging.error(f"摘要生成失败: {str(e)}")
         return None
+
+
+def generate_summary(
+    db: Session,
+    branch_id: uuid.UUID,
+    force: bool = False
+) -> Optional[str]:
+    """
+    生成分支摘要（统一入口，优先使用 MiniMax）
+    
+    Args:
+        db: 数据库会话
+        branch_id: 分支ID
+        force: 是否强制生成
+    
+    Returns:
+        生成的摘要文本，失败返回None
+    """
+    return generate_summary_with_minimax(db, branch_id, force)
 
 
 def get_branch_summary(
@@ -161,6 +236,7 @@ def get_branch_summary(
     获取分支摘要（懒刷新）
     
     Args:
+        db: 数据库会话
         branch_id: 分支ID
         force_refresh: 是否强制刷新
     
@@ -171,14 +247,11 @@ def get_branch_summary(
     if not branch:
         raise ValueError("分支不存在")
     
-    # 如果有新续写段，触发懒刷新（异步，不阻塞）
+    # 如果有新续写段，触发懒刷新
     if not force_refresh and should_generate_summary(db, branch_id):
-        # 异步生成，不阻塞请求
-        # 在实际应用中，可以使用队列异步处理
         try:
             generate_summary(db, branch_id, force=True)
         except Exception as e:
-            # 失败不影响返回，返回旧摘要
             import logging
             logging.warning(f"懒刷新摘要生成失败: {str(e)}")
     
