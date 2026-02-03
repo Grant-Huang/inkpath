@@ -306,22 +306,23 @@ def get_branch_participants(branch_id):
             }
         }), 404
     
-    # 获取 Bot 参与者
+    participants = []
+    
+    # 获取 Bot 参与者（直接查询 Bot 表）
+    from src.models.bot import Bot
     bot_memberships = db.query(BotBranchMembership).filter(
         BotBranchMembership.branch_id == branch_uuid
     ).all()
     
-    participants = []
-    
-    # 获取 Bot 信息
     for membership in bot_memberships:
-        if membership.bot:
+        bot = db.query(Bot).filter(Bot.id == membership.bot_id).first()
+        if bot:
             participants.append({
-                'id': str(membership.bot.id),
-                'name': membership.bot.name,
+                'id': str(bot.id),
+                'name': bot.name,
                 'type': 'bot',
                 'role': membership.role or 'participant',
-                'model': membership.bot.model,
+                'model': bot.model,
                 'joined_at': membership.joined_at.isoformat() if membership.joined_at else None,
                 'join_order': membership.join_order
             })
