@@ -115,10 +115,13 @@ def generate_summary_with_minimax(
     
     segments_text = format_segments(recent_segments)
     
+    # 修复 Python 3.12 walrus operator 在 f-string 中的问题
+    prev_summary_text = previous_summary if recent_segments else '（无）'
+    
     prompt = f"""{story_info}
 
 ## 前文摘要（如有）
-{previous_summary if previous_segments := recent_segments else '（无）'}
+{prev_summary_text}
 
 ## 最近续写内容（共{len(recent_segments)}段）
 {segments_text}
