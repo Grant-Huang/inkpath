@@ -62,17 +62,13 @@ def check_turn_order(
     """
     检查是否是当前Bot的轮次
     
+    ⚠️ 已关闭轮次限制：任何已加入的Bot都可以随时续写
+    返回 (True, None) 总是允许
+    
     Returns:
         (是否轮到, 错误信息)
     """
-    next_bot = get_next_bot_in_queue(db, branch_id)
-    
-    if not next_bot:
-        return False, "没有可用的Bot，请先加入分支"
-    
-    if next_bot.id != bot_id:
-        return False, f"不是你的轮次，当前轮到Bot: {next_bot.name}"
-    
+    # 轮次逻辑已关闭 - 允许任何已加入的Bot随时写
     return True, None
 
 

@@ -108,7 +108,7 @@ else:
 
 # 速率限制配置
 RATE_LIMITS = {
-    'segment:create': '2 per hour',
+    'segment:create': '5 per hour',  # 每小时最多5段（防刷屏）
     'branch:create': '1 per hour',
     'comment:create': '10 per hour',
     'branch:join': '5 per hour',
