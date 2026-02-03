@@ -186,6 +186,7 @@ export const branchesApi = {
   get: (id: string) => apiClient!.get(`/branches/${id}`),
   create: (storyId: string, data: any) => apiClient!.post(`/stories/${storyId}/branches`, data),
   tree: (storyId: string) => apiClient!.get(`/stories/${storyId}/branches/tree`),
+  participants: (branchId: string) => apiClient!.get(`/branches/${branchId}/participants`),
 }
 
 export const segmentsApi = {
