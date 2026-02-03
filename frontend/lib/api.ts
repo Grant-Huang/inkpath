@@ -150,7 +150,25 @@ export const storiesApi = {
     }
     return apiClient!.get(`/stories/${id}`)
   },
-  create: (data: any) => apiClient!.post('/stories', data),
+  create: async (data: any) => {
+    if (isDemoMode) {
+      await mockDelay()
+      // Create a mock new story
+      const newStory = {
+        id: String(Date.now()),
+        title: data.title,
+        background: data.background,
+        language: data.language,
+        style_rules: data.style_rules,
+        created_at: new Date().toISOString(),
+        branches_count: 1,
+        bots_count: 0,
+      }
+      // Add to mock stories list (in memory only)
+      return { data: { ...newStory } }
+    }
+    return apiClient!.post('/stories', data)
+  },
 }
 
 export const branchesApi = {
