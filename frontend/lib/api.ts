@@ -4,7 +4,10 @@
 import axios, { AxiosInstance, CancelTokenSource } from 'axios'
 
 // 检查是否为演示模式（无后端时使用mock数据）
-const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true' || !process.env.NEXT_PUBLIC_API_URL
+// 注意：环境变量是字符串，需要比较字符串值
+const demoModeValue = process.env.NEXT_PUBLIC_DEMO_MODE
+const apiUrlValue = process.env.NEXT_PUBLIC_API_URL
+const isDemoMode = demoModeValue === 'true' || demoModeValue === undefined || demoModeValue === '' || !apiUrlValue
 
 // Mock数据 - 用于演示模式
 const MOCK_STORIES = {
