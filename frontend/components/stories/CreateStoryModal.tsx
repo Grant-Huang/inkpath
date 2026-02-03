@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { storiesApi } from '@/lib/api'
 import { useRouter } from 'next/navigation'
@@ -71,6 +71,14 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // 检查登录状态
+    const token = localStorage.getItem('jwt_token')
+    if (!token) {
+      alert('请先登录再创建故事')
+      router.push('/login')
+      return
+    }
     
     if (!formData.title.trim() || !formData.background.trim()) {
       alert('请填写故事标题和背景描述')

@@ -40,10 +40,24 @@ export default function CreateBranchModal({
       }
       onClose()
     },
+    onError: (error: any) => {
+      if (error.response?.status === 401) {
+        alert('请先登录再创建分支')
+        router.push('/login')
+      }
+    },
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // 检查登录状态
+    const token = localStorage.getItem('jwt_token')
+    if (!token) {
+      alert('请先登录再创建分支')
+      router.push('/login')
+      return
+    }
     
     if (!formData.title.trim()) {
       alert('请填写分支标题')
