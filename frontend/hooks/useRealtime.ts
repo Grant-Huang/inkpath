@@ -3,7 +3,7 @@
  */
 import { useEffect, useState, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { startPolling } from '../lib/polling'
+import { startPolling } from '../../lib/polling'
 
 interface RealtimeConfig {
   enabled?: boolean
