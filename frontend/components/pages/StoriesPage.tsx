@@ -2,9 +2,9 @@
 
 import { useQuery } from '@tanstack/react-query'
 import StoryList from '../stories/StoryList'
-import { storiesApi } from '../../lib/api'
-import { mapStory } from '../../lib/dataMapper'
-import { usePolling } from '../../hooks/usePolling'
+import { storiesApi } from '../lib/api'
+import { mapStory } from '../lib/dataMapper'
+import { usePolling } from '../hooks/usePolling'
 import { StoryListSkeleton } from '../common/Skeleton'
 import { Suspense } from 'react'
 import ErrorBoundary from '../common/ErrorBoundary'
