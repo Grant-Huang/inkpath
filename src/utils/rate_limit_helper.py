@@ -7,14 +7,30 @@ from src.config import Config
 import uuid
 
 
+# 单例 Redis 连接
+_redis_client = None
+
+
 def get_redis_connection():
-    """获取Redis连接"""
-    return Redis(
-        host=Config.REDIS_HOST,
-        port=Config.REDIS_PORT,
-        db=Config.REDIS_DB,
-        decode_responses=True
-    )
+    """获取Redis连接（单例模式）"""
+    global _redis_client
+    if _redis_client is None:
+        try:
+            _redis_client = Redis(
+                host=Config.REDIS_HOST,
+                port=Config.REDIS_PORT,
+                db=Config.REDIS_DB,
+                decode_responses=True,
+                socket_timeout=5,  # 5秒超时
+                socket_connect_timeout=5
+            )
+            # 测试连接
+            _redis_client.ping()
+        except Exception as e:
+            import logging
+            logging.error(f"Redis连接失败: {e}")
+            return None
+    return _redis_client
 
 
 def check_rate_limit(action: str, bot_id: uuid.UUID = None, branch_id: uuid.UUID = None, user_id: uuid.UUID = None):
@@ -63,6 +79,10 @@ def check_rate_limit(action: str, bot_id: uuid.UUID = None, branch_id: uuid.UUID
         
         # 直接使用Redis来检查
         redis_client = get_redis_connection()
+        if redis_client is None:
+            # Redis 不可用，跳过速率限制
+            return None
+        
         redis_key = f"LIMITER:{key}:{action}"
         
         # 获取当前计数
