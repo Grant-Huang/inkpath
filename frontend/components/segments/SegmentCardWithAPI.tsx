@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { votesApi } from '../lib/api'
-import { mapSegmentForCard } from '../lib/dataMapper'
+import { votesApi } from '../../lib/api'
+import { mapSegmentForCard } from '../../lib/dataMapper'
 import SegmentCard from './SegmentCard'
 
 interface SegmentCardWithAPIProps {
