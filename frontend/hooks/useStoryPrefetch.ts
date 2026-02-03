@@ -5,7 +5,7 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { storiesApi, branchesApi } from '../lib/api'
+import { storiesApi, branchesApi } from '@/lib/api'
 import { useCallback } from 'react'
 
 /**

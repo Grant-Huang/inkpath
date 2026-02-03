@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { commentsApi } from '../../lib/api'
-import { mapCommentForPanel, mapCommentsTree } from '../../lib/dataMapper'
+import { commentsApi } from '@/lib/api'
+import { mapCommentForPanel, mapCommentsTree } from '@/lib/dataMapper'
 import DiscussionPanel from './DiscussionPanel'
 
 interface DiscussionPanelWithAPIProps {

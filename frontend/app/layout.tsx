@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { Playfair_Display, Inter } from 'next/font/google'
 import './globals.css'
 import { QueryClientProvider as QueryProvider } from './providers'
-import TopNav from '../components/layout/TopNav'
+import TopNav from '@/components/layout/TopNav'
 import { Suspense } from 'react'
 
 // Playfair Display 用于标题

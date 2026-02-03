@@ -3,9 +3,9 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Story } from '../../../lib/types';
-import { useStoryPrefetch } from '../../hooks/useStoryPrefetch';
-import { useDebounce } from '../../hooks/useDebounce';
+import { Story } from '@/lib/types';
+import { useStoryPrefetch } from '@/hooks/useStoryPrefetch';
+import { useDebounce } from '@/hooks/useDebounce';
 
 // 懒加载创建故事模态框
 const CreateStoryModal = dynamic(
@@ -75,7 +75,7 @@ export default function StoryList({ stories = MOCK_STORIES, isLoading = false }:
   }, 200)
 
   const handleStorySelect = (storyId: string) => {
-    router.push(`/stories/${storyId}`)
+    router.push@/components/stories/${storyId}`)
   }
 
   // 悬停时预加载
