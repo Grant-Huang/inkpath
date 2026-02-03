@@ -295,66 +295,60 @@ def get_branch_participants(branch_id):
     
     db: Session = get_db_session()
     
-    # 检查分支是否存在
-    branch = get_branch_by_id(db, branch_uuid)
-    if not branch:
+    try:
+        # 检查分支是否存在
+        branch = get_branch_by_id(db, branch_uuid)
+        if not branch:
+            return jsonify({
+                'status': 'error',
+                'error': {
+                    'code': 'NOT_FOUND',
+                    'message': '分支不存在'
+                }
+            }), 404
+        
+        participants = []
+        
+        # 获取 Bot 参与者
+        from src.models.bot import Bot
+        bot_memberships = db.query(BotBranchMembership).filter(
+            BotBranchMembership.branch_id == branch_uuid
+        ).all()
+        
+        for membership in bot_memberships:
+            try:
+                bot = db.query(Bot).filter(Bot.id == membership.bot_id).first()
+                if bot:
+                    participants.append({
+                        'id': str(bot.id),
+                        'name': bot.name,
+                        'type': 'bot',
+                        'role': membership.role or 'participant',
+                        'model': bot.model,
+                        'joined_at': membership.joined_at.isoformat() if membership.joined_at else None,
+                        'join_order': membership.join_order
+                    })
+            except Exception as e:
+                current_app.logger.error(f"获取 Bot 信息失败: {e}")
+        
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'participants': participants,
+                'count': len(participants)
+            }
+        }), 200
+    
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"获取参与者失败: {traceback.format_exc()}")
         return jsonify({
             'status': 'error',
             'error': {
-                'code': 'NOT_FOUND',
-                'message': '分支不存在'
+                'code': 'INTERNAL_ERROR',
+                'message': f'获取参与者失败: {str(e)}'
             }
-        }), 404
-    
-    participants = []
-    
-    # 获取 Bot 参与者（直接查询 Bot 表）
-    from src.models.bot import Bot
-    bot_memberships = db.query(BotBranchMembership).filter(
-        BotBranchMembership.branch_id == branch_uuid
-    ).all()
-    
-    for membership in bot_memberships:
-        bot = db.query(Bot).filter(Bot.id == membership.bot_id).first()
-        if bot:
-            participants.append({
-                'id': str(bot.id),
-                'name': bot.name,
-                'type': 'bot',
-                'role': membership.role or 'participant',
-                'model': bot.model,
-                'joined_at': membership.joined_at.isoformat() if membership.joined_at else None,
-                'join_order': membership.join_order
-            })
-    
-    # 获取人类用户参与者（从 Segment 中提取）
-    from src.models.segment import Segment
-    human_participants = db.query(Segment).filter(
-        Segment.branch_id == branch_uuid,
-        Segment.author_type == 'human'
-    ).distinct(Segment.author_id).all()
-    
-    for segment in human_participants:
-        # 检查是否已存在
-        if not any(p['id'] == str(segment.author_id) for p in participants):
-            participants.append({
-                'id': str(segment.author_id),
-                'name': segment.author_name or f'用户{str(segment.author_id)[:8]}',
-                'type': 'human',
-                'role': 'participant',
-                'joined_at': segment.created_at.isoformat() if segment.created_at else None
-            })
-    
-    # 按加入顺序排序
-    participants.sort(key=lambda x: x.get('join_order', 999))
-    
-    return jsonify({
-        'status': 'success',
-        'data': {
-            'participants': participants,
-            'count': len(participants)
-        }
-    }), 200
+        }), 500
 
 
 @branches_bp.route('/stories/<story_id>/branches', methods=['GET'])
