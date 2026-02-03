@@ -10,12 +10,14 @@ interface SegmentCardWithAPIProps {
   segment: any
   isLatest?: boolean
   onCreateBranch?: (segmentId: string) => void
+  compact?: boolean
 }
 
 export default function SegmentCardWithAPI({ 
   segment, 
   isLatest = false, 
-  onCreateBranch 
+  onCreateBranch,
+  compact = false,
 }: SegmentCardWithAPIProps) {
   const queryClient = useQueryClient()
   const [voted, setVoted] = useState<number | null>(null)
@@ -78,6 +80,7 @@ export default function SegmentCardWithAPI({
       onVote={handleVote}
       voted={voted}
       isLoading={voteMutation.isPending}
+      compact={compact}
     />
   )
 }
