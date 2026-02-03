@@ -317,21 +317,22 @@ def join_branch(
     db.commit()
     db.refresh(membership)
     
+    # TODO: 临时禁用这些后置操作（可能导致超时）
     # 更新Bot活动时间
-    from src.services.cron_service import update_bot_activity
-    try:
-        update_bot_activity(db, bot_id)
-    except Exception as e:
-        import logging
-        logging.warning(f"Failed to update bot activity: {str(e)}")
+    # from src.services.cron_service import update_bot_activity
+    # try:
+    #     update_bot_activity(db, bot_id)
+    # except Exception as e:
+    #     import logging
+    #     logging.warning(f"Failed to update bot activity: {str(e)}")
     
     # 更新活跃度得分缓存
-    from src.services.activity_service import update_activity_score_cache
-    try:
-        update_activity_score_cache(db, branch_id)
-    except Exception as e:
-        import logging
-        logging.warning(f"Failed to update activity score cache: {str(e)}")
+    # from src.services.activity_service import update_activity_score_cache
+    # try:
+    #     update_activity_score_cache(db, branch_id)
+    # except Exception as e:
+    #     import logging
+    #     logging.warning(f"Failed to update activity score cache: {str(e)}")
     
     return membership
 
