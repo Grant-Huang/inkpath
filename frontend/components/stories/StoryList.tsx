@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Story } from '@/lib/types';
@@ -43,11 +43,32 @@ interface DisplayStory {
   summary: string;
 }
 
+interface Participant {
+  id: string;
+  name: string;
+  type: 'bot' | 'human';
+  role: string;
+  model?: string;
+}
+
 export default function StoryList({ stories = [], isLoading = false }: StoryListProps) {
   const router = useRouter();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { prefetchStory } = useStoryPrefetch();
   const [expandedStory, setExpandedStory] = useState<string | null>(null);
+  const [participantsPopup, setParticipantsPopup] = useState<{
+    show: boolean;
+    storyId: string;
+    storyTitle: string;
+    participants: Participant[];
+    loading: boolean;
+  }>({
+    show: false,
+    storyId: '',
+    storyTitle: '',
+    participants: [],
+    loading: false
+  });
 
   const debouncedPrefetch = useDebounce((storyId: string) => {
     prefetchStory(storyId)
@@ -88,6 +109,66 @@ export default function StoryList({ stories = [], isLoading = false }: StoryList
       lastUpdate: formatTime(story.created_at || ''),
       summary: background.substring(0, 150) || '',
     }
+  }
+
+  // 获取所有分支的参与者（用于故事）
+  const fetchStoryParticipants = async (storyId: string, storyTitle: string) => {
+    setParticipantsPopup({
+      show: true,
+      storyId,
+      storyTitle,
+      participants: [],
+      loading: true
+    })
+
+    try {
+      // 获取故事的所有分支
+      const branchesRes = await fetch(`https://inkpath-api.onrender.com/api/v1/stories/${storyId}/branches?limit=100`)
+      const branchesData = await branchesRes.json()
+      
+      if (branchesData.status !== 'success') {
+        throw new Error('获取分支失败')
+      }
+
+      const branches = branchesData.data.branches || []
+      const allParticipants: Participant[] = []
+      const participantIds = new Set<string>()
+
+      // 获取每个分支的参与者
+      for (const branch of branches) {
+        try {
+          const participantsRes = await fetch(`https://inkpath-api.onrender.com/api/v1/branches/${branch.id}/participants`)
+          const participantsData = await participantsRes.json()
+          
+          if (participantsData.status === 'success') {
+            for (const p of (participantsData.data.participants || [])) {
+              if (!participantIds.has(p.id)) {
+                participantIds.add(p.id)
+                allParticipants.push(p)
+              }
+            }
+          }
+        } catch {
+          // 忽略单个分支的错误
+        }
+      }
+
+      setParticipantsPopup(prev => ({
+        ...prev,
+        participants: allParticipants,
+        loading: false
+      }))
+    } catch (error) {
+      console.error('获取参与者失败:', error)
+      setParticipantsPopup(prev => ({
+        ...prev,
+        loading: false
+      }))
+    }
+  }
+
+  const closeParticipantsPopup = () => {
+    setParticipantsPopup(prev => ({ ...prev, show: false }))
   }
 
   // =====================
@@ -142,9 +223,15 @@ export default function StoryList({ stories = [], isLoading = false }: StoryList
                     <div className="text-xs text-[#a89080]">
                       <span className="text-[#6B5B95] font-semibold">{display.branches}</span> 条分支
                     </div>
-                    <div className="text-xs text-[#a89080] mt-0.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        fetchStoryParticipants(story.id, story.title)
+                      }}
+                      className="text-xs text-[#a89080] mt-0.5 hover:text-[#6B5B95] transition-colors"
+                    >
                       <span className="text-[#6B5B95] font-semibold">{display.activeBots}</span> 个 Bot
-                    </div>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -246,6 +333,57 @@ export default function StoryList({ stories = [], isLoading = false }: StoryList
       {/* 创建弹窗 */}
       {showCreateModal && (
         <CreateStoryModal onClose={() => setShowCreateModal(false)} />
+      )}
+
+      {/* 参与者弹窗 */}
+      {participantsPopup.show && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={closeParticipantsPopup}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* 头部 */}
+            <div className="flex items-center justify-between p-4 border-b border-[#ede9e3]">
+              <h3 className="font-semibold text-[#2c2420]">
+                {participantsPopup.storyTitle} - 参与者
+              </h3>
+              <button onClick={closeParticipantsPopup} className="text-[#a89080] hover:text-[#2c2420]">
+                ✕
+              </button>
+            </div>
+            
+            {/* 内容 */}
+            <div className="p-4 max-h-[60vh] overflow-y-auto">
+              {participantsPopup.loading ? (
+                <div className="text-center py-8 text-[#a89080]">
+                  加载中...
+                </div>
+              ) : participantsPopup.participants.length === 0 ? (
+                <div className="text-center py-8 text-[#a89080]">
+                  暂无参与者
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {participantsPopup.participants.map((p) => (
+                    <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#faf8f5]">
+                      <div className="w-8 h-8 rounded-full bg-[#6B5B95] flex items-center justify-center text-white text-xs font-semibold">
+                        {p.name.charAt(0)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-[#2c2420]">{p.name}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#f0ecf7] text-[#6B5B95]">
+                            {p.role || '参与者'}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-[#a89080]">
+                          {p.type === 'bot' ? p.model : '人类用户'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

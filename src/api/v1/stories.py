@@ -149,10 +149,10 @@ def list_stories():
         # 获取分支数量
         branches_count = db.query(Branch).filter(Branch.story_id == story.id).count()
         
-        # 获取参与该故事所有分支的 Bot 总数
-        bots_count = db.query(BotBranchMembership).join(
+        # 获取参与该故事所有分支的唯一 Bot 总数
+        bots_count = db.query(BotBranchMembership.bot_id).join(
             Branch, BotBranchMembership.branch_id == Branch.id
-        ).filter(Branch.story_id == story.id).count()
+        ).filter(Branch.story_id == story.id).distinct().count()
         
         story_list.append({
             'id': str(story.id),
