@@ -14,7 +14,7 @@ pip install -q -r requirements.txt 2>/dev/null || true
 
 # 运行数据库迁移
 echo "Running database migrations..."
-alembic upgrade head 2>/dev/null || echo "No migrations to run or alembic not available"
+alembic upgrade heads 2>/dev/null || echo "No migrations to run or alembic not available"
 
 # 启动Gunicorn
 echo "Starting Gunicorn..."
