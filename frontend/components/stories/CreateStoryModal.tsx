@@ -49,13 +49,11 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
-      if (file.name.endsWith('.md')) {
-        try {
-          const content = await file.text()
-          newFiles.push({ name: file.name, content })
-        } catch (error) {
-          console.error(`Failed to read file ${file.name}:`, error)
-        }
+      try {
+        const content = await file.text()
+        newFiles.push({ name: file.name, content })
+      } catch (error) {
+        console.error(`Failed to read file ${file.name}:`, error)
       }
     }
 
@@ -81,14 +79,32 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
     }
 
     // Build story package data from uploaded files
-    const storyPackage: Record<string, string> = {}
-    uploadedFiles.forEach(file => {
-      // Extract number prefix from filename (e.g., "10_evidence_pack.md" -> "evidence_pack")
-      const match = file.name.match(/^\d+_(.+)\.md$/)
-      if (match) {
-        storyPackage[match[1]] = file.content
+    // Required: metadata.json, characters.json, outline.json
+    const storyPackage: Record<string, any> = {}
+    const requiredFiles = ['metadata.json', 'characters.json', 'outline.json']
+    const uploadedNames = uploadedFiles.map(f => f.name)
+    
+    // Check for required files
+    const missingRequired = requiredFiles.filter(f => !uploadedNames.includes(f))
+    if (missingRequired.length > 0) {
+      alert(`❌ 缺少必选文件：${missingRequired.join(', ')}`)
+      return
+    }
+
+    // Process uploaded files
+    for (const file of uploadedFiles) {
+      try {
+        if (file.name.endsWith('.json')) {
+          // Parse JSON files directly
+          storyPackage[file.name.replace('.json', '')] = JSON.parse(file.content)
+        } else {
+          // For MD files, store as-is
+          storyPackage[file.name.replace('.md', '')] = file.content
+        }
+      } catch (error) {
+        console.error(`Failed to parse file ${file.name}:`, error)
       }
-    })
+    }
 
     await createStoryMutation.mutateAsync({
       title: formData.title,
@@ -97,7 +113,7 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
       language: formData.language,
       min_length: 150,
       max_length: 500,
-      // Include story package files if any were uploaded
+      // Include story package
       ...(Object.keys(storyPackage).length > 0 && { story_package: storyPackage }),
     })
   }
@@ -164,7 +180,7 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-sm font-medium text-[#5a4f45]">
-                  上传故事包（MD文件）<span className="text-xs text-[#a89080] font-normal">（强烈建议）</span>
+                  上传故事包（JSON/MD文件）<span className="text-xs text-[#a89080] font-normal">（❌ 必选：metadata.json, characters.json, outline.json）</span>
                 </label>
                 <a
                   href="/docs/10_故事发起者帮助文档_人类版.md"
@@ -177,12 +193,12 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
               </div>
               <div className="border-2 border-dashed border-[#d9d3ca] rounded-lg p-4">
                 <div className="text-center">
-                  <p className="text-xs text-[#7a6f65] mb-2">支持上传多个MD文件</p>
+                  <p className="text-xs text-[#7a6f65] mb-2">支持上传 JSON 和 MD 文件</p>
                   <input
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept=".md"
+                    accept=".json,.md"
                     onChange={handleFileSelect}
                     className="hidden"
                     disabled={isUploading || createStoryMutation.isPending}
@@ -216,15 +232,18 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
                 </div>
               </div>
               <div className="mt-2 text-xs text-[#a89080]">
-                <p className="mb-1"><strong>故事包文件说明：</strong></p>
+                <p className="mb-1"><strong>故事包文件说明（JSON格式）：</strong></p>
+                <p className="mb-1 text-[#b8574e]">❌ 必选文件（创建故事必须提供）：</p>
+                <ul className="list-disc list-inside space-y-0.5 ml-2 mb-2">
+                  <li><code className="bg-[#f5f2ef] px-1 rounded">metadata.json</code> - 故事元信息（标题、语言、类型等）</li>
+                  <li><code className="bg-[#f5f2ef] px-1 rounded">characters.json</code> - 角色卡（角色名称、描述、性格等）</li>
+                  <li><code className="bg-[#f5f2ef] px-1 rounded">outline.json</code> - 剧情大纲（摘要、章节、主题等）</li>
+                </ul>
+                <p className="mb-1 text-[#6B5B95]">✅ 强烈推荐文件：</p>
                 <ul className="list-disc list-inside space-y-0.5 ml-2">
-                  <li><code className="bg-[#f5f2ef] px-1 rounded">00_meta.md</code> - 故事元信息（必填）</li>
-                  <li><code className="bg-[#f5f2ef] px-1 rounded">10_evidence_pack.md</code> - 证据包（强烈建议）</li>
-                  <li><code className="bg-[#f5f2ef] px-1 rounded">20_stance_pack.md</code> - 立场包（强烈建议）</li>
-                  <li><code className="bg-[#f5f2ef] px-1 rounded">30_cast.md</code> - 角色卡（建议）</li>
-                  <li><code className="bg-[#f5f2ef] px-1 rounded">40_plot_outline.md</code> - 剧情大纲（建议）</li>
-                  <li><code className="bg-[#f5f2ef] px-1 rounded">50_constraints.md</code> - 约束（建议）</li>
-                  <li><code className="bg-[#f5f2ef] px-1 rounded">60_sources.md</code> - 来源清单（建议）</li>
+                  <li><code className="bg-[#f5f2ef] px-1 rounded">first_chapter.md</code> - 起始章节（至少1000字，开篇内容）</li>
+                  <li><code className="bg-[#f5f2ef] px-1 rounded">worldbuilding.json</code> - 世界观设定</li>
+                  <li><code className="bg-[#f5f2ef] px-1 rounded">rules.json</code> - 规则设定</li>
                 </ul>
               </div>
             </div>
