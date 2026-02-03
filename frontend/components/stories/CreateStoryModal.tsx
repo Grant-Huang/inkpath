@@ -60,7 +60,6 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
     setUploadedFiles(prev => [...prev, ...newFiles])
     setIsUploading(false)
     
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -78,27 +77,21 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
       return
     }
 
-    // Build story package data from uploaded files
-    // Required: metadata.json, characters.json, outline.json
     const storyPackage: Record<string, any> = {}
     const requiredFiles = ['metadata.json', 'characters.json', 'outline.json']
     const uploadedNames = uploadedFiles.map(f => f.name)
     
-    // Check for required files
     const missingRequired = requiredFiles.filter(f => !uploadedNames.includes(f))
     if (missingRequired.length > 0) {
       alert(`❌ 缺少必选文件：${missingRequired.join(', ')}`)
       return
     }
 
-    // Process uploaded files
     for (const file of uploadedFiles) {
       try {
         if (file.name.endsWith('.json')) {
-          // Parse JSON files directly
           storyPackage[file.name.replace('.json', '')] = JSON.parse(file.content)
         } else {
-          // For MD files, store as-is
           storyPackage[file.name.replace('.md', '')] = file.content
         }
       } catch (error) {
@@ -113,180 +106,245 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
       language: formData.language,
       min_length: 150,
       max_length: 500,
-      // Include story package
       ...(Object.keys(storyPackage).length > 0 && { story_package: storyPackage }),
     })
   }
 
+  // 必选文件列表
+  const requiredFiles = ['metadata.json', 'characters.json', 'outline.json']
+  const recommendedFiles = ['first_chapter.md', 'worldbuilding.json', 'rules.json']
+  const uploadedNames = uploadedFiles.map(f => f.name)
+
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-lg sm:rounded-xl w-full max-w-lg max-h-[95vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl serif font-bold text-[#2c2420] mb-4">创建新故事</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            {/* 故事标题 */}
-            <div>
-              <label className="block text-sm font-medium text-[#5a4f45] mb-1.5">
-                故事标题 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full border border-[#ede9e3] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95]"
-                placeholder="输入故事标题"
-                required
-                disabled={createStoryMutation.isPending}
-              />
-            </div>
+        {/* 标题区域 */}
+        <div className="sticky top-0 bg-white sm:bg-transparent border-b border-[#ede9e3] px-4 py-3 sm:px-6 sm:py-4">
+          <h2 className="text-lg sm:text-xl serif font-bold text-[#2c2420]">创建新故事</h2>
+          <p className="hidden sm:block text-xs text-[#a89080] mt-1">创建属于你的协作故事</p>
+        </div>
 
-            {/* 语言 */}
-            <div>
-              <label className="block text-sm font-medium text-[#5a4f45] mb-1.5">语言</label>
-              <select
-                value={formData.language}
-                onChange={(e) => setFormData({ ...formData, language: e.target.value as 'zh' | 'en' })}
-                className="w-full border border-[#ede9e3] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95]"
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+          {/* 故事标题 */}
+          <div>
+            <label className="block text-sm font-medium text-[#5a4f45] mb-1.5">
+              标题 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="w-full border border-[#ede9e3] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95]"
+              placeholder="输入故事标题"
+              required
+              disabled={createStoryMutation.isPending}
+            />
+          </div>
+
+          {/* 语言选择 */}
+          <div>
+            <label className="block text-sm font-medium text-[#5a4f45] mb-1.5">语言</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, language: 'zh' })}
                 disabled={createStoryMutation.isPending}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  formData.language === 'zh' 
+                    ? 'bg-[#6B5B95] text-white' 
+                    : 'bg-[#f5f2ef] text-[#5a4f45] border border-[#ede9e3]'
+                }`}
               >
-                <option value="zh">中文</option>
-                <option value="en">英文</option>
-              </select>
-            </div>
-
-            {/* 背景描述 */}
-            <div>
-              <label className="block text-sm font-medium text-[#5a4f45] mb-1.5">
-                背景描述 <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={formData.background}
-                onChange={(e) => setFormData({ ...formData, background: e.target.value })}
-                className="w-full border border-[#ede9e3] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95]"
-                rows={4}
-                placeholder="描述故事的背景设定..."
-                required
+                中文
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, language: 'en' })}
                 disabled={createStoryMutation.isPending}
-              />
-            </div>
-
-            {/* 故事包上传 */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-[#5a4f45]">
-                  上传故事包（JSON/MD文件）<span className="text-xs text-[#a89080] font-normal">（❌ 必选：metadata.json, characters.json, outline.json）</span>
-                </label>
-                <a
-                  href="/docs/10_故事发起者帮助文档_人类版.md"
-                  target="_blank"
-                  className="text-xs text-[#6B5B95] hover:text-[#5a4a85] font-medium transition-colors flex items-center gap-1 underline"
-                >
-                  <span>📖</span>
-                  <span>查看帮助</span>
-                </a>
-              </div>
-              <div className="border-2 border-dashed border-[#d9d3ca] rounded-lg p-4">
-                <div className="text-center">
-                  <p className="text-xs text-[#7a6f65] mb-2">支持上传 JSON 和 MD 文件</p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept=".json,.md"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    disabled={isUploading || createStoryMutation.isPending}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading || createStoryMutation.isPending}
-                    className="bg-[#f5f2ef] border border-[#ede9e3] rounded-lg px-4 py-2 text-sm text-[#5a4f45] hover:bg-[#f0ecf7] hover:border-[#6B5B95] transition-colors disabled:opacity-50"
-                  >
-                    {isUploading ? '处理中...' : '选择文件'}
-                  </button>
-                  
-                  {/* 已上传文件列表 */}
-                  {uploadedFiles.length > 0 && (
-                    <div id="story-pack-file-list" className="mt-3 text-left space-y-1">
-                      {uploadedFiles.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between bg-[#f5f2ef] rounded px-2 py-1 text-xs">
-                          <span className="text-[#5a4f45] truncate max-w-[200px]">{file.name}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeFile(index)}
-                            className="text-[#b8574e] hover:text-[#a04538] ml-2"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="mt-2 text-xs text-[#a89080]">
-                <p className="mb-1"><strong>故事包文件说明（JSON格式）：</strong></p>
-                <p className="mb-1 text-[#b8574e]">❌ 必选文件（创建故事必须提供）：</p>
-                <ul className="list-disc list-inside space-y-0.5 ml-2 mb-2">
-                  <li><code className="bg-[#f5f2ef] px-1 rounded">metadata.json</code> - 故事元信息（标题、语言、类型等）</li>
-                  <li><code className="bg-[#f5f2ef] px-1 rounded">characters.json</code> - 角色卡（角色名称、描述、性格等）</li>
-                  <li><code className="bg-[#f5f2ef] px-1 rounded">outline.json</code> - 剧情大纲（摘要、章节、主题等）</li>
-                </ul>
-                <p className="mb-1 text-[#6B5B95]">✅ 强烈推荐文件：</p>
-                <ul className="list-disc list-inside space-y-0.5 ml-2">
-                  <li><code className="bg-[#f5f2ef] px-1 rounded">first_chapter.md</code> - 起始章节（至少1000字，开篇内容）</li>
-                  <li><code className="bg-[#f5f2ef] px-1 rounded">worldbuilding.json</code> - 世界观设定</li>
-                  <li><code className="bg-[#f5f2ef] px-1 rounded">rules.json</code> - 规则设定</li>
-                </ul>
-              </div>
-            </div>
-
-            {/* 写作风格规范 */}
-            <div>
-              <label className="block text-sm font-medium text-[#5a4f45] mb-1.5">
-                写作风格规范（可选）
-              </label>
-              <textarea
-                value={formData.style_rules}
-                onChange={(e) => setFormData({ ...formData, style_rules: e.target.value })}
-                className="w-full border border-[#ede9e3] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95]"
-                rows={3}
-                placeholder="例如：第三人称视角，注重心理描写..."
-                disabled={createStoryMutation.isPending}
-              />
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  formData.language === 'en' 
+                    ? 'bg-[#6B5B95] text-white' 
+                    : 'bg-[#f5f2ef] text-[#5a4f45] border border-[#ede9e3]'
+                }`}
+              >
+                English
+              </button>
             </div>
           </div>
 
+          {/* 背景描述 */}
+          <div>
+            <label className="block text-sm font-medium text-[#5a4f45] mb-1.5">
+              背景 <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={formData.background}
+              onChange={(e) => setFormData({ ...formData, background: e.target.value })}
+              className="w-full border border-[#ede9e3] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95]"
+              rows={3}
+              placeholder="描述故事的背景设定..."
+              required
+              disabled={createStoryMutation.isPending}
+            />
+          </div>
+
+          {/* 故事包上传 - 移动端折叠 */}
+          <details className="group">
+            <summary className="flex items-center justify-between cursor-pointer list-none">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-[#5a4f45]">上传故事包</span>
+                {/* 显示文件状态 */}
+                <div className="flex gap-1">
+                  {requiredFiles.map(file => (
+                    <span 
+                      key={file}
+                      className={`text-xs px-1.5 py-0.5 rounded ${
+                        uploadedNames.includes(file) 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-red-50 text-red-600'
+                      }`}
+                    >
+                      {file}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <span className="text-xs text-[#a89080] group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            
+            <div className="mt-3 space-y-3">
+              {/* 上传区域 */}
+              <div className="border-2 border-dashed border-[#d9d3ca] rounded-lg p-4">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".json,.md"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  disabled={isUploading || createStoryMutation.isPending}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading || createStoryMutation.isPending}
+                  className="w-full bg-[#f5f2ef] border border-[#ede9e3] rounded-lg py-3 text-sm text-[#5a4f45] hover:bg-[#f0ecf7] hover:border-[#6B5B95] transition-colors disabled:opacity-50"
+                >
+                  {isUploading ? '处理中...' : '+ 选择文件'}
+                </button>
+                
+                {/* 已上传文件 */}
+                {uploadedFiles.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {uploadedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-[#f5f2ef] rounded px-2 py-1.5 text-xs">
+                        <span className="text-[#5a4f45] truncate flex-1">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(index)}
+                          className="text-[#b8574e] hover:text-[#a04538] ml-2 px-1"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 文件说明 - 折叠内 */}
+              <div className="text-xs text-[#a89080] space-y-2">
+                <p className="font-medium text-[#5a4f45]">📁 文件说明</p>
+                
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {/* 必选文件 */}
+                  <div className="bg-red-50 rounded-lg p-2">
+                    <p className="font-medium text-red-700 mb-1">❌ 必选（缺少无法创建）</p>
+                    <ul className="space-y-0.5 text-[10px]">
+                      {requiredFiles.map(file => (
+                        <li key={file} className="flex items-center gap-1">
+                          <span className={uploadedNames.includes(file) ? 'text-green-600' : 'text-red-500'}>
+                            {uploadedNames.includes(file) ? '✓' : '○'}
+                          </span>
+                          {file}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  {/* 推荐文件 */}
+                  <div className="bg-purple-50 rounded-lg p-2">
+                    <p className="font-medium text-purple-700 mb-1">✅ 推荐</p>
+                    <ul className="space-y-0.5 text-[10px]">
+                      {recommendedFiles.map(file => (
+                        <li key={file} className="flex items-center gap-1">
+                          <span className={uploadedNames.includes(file) ? 'text-green-600' : 'text-purple-500'}>
+                            {uploadedNames.includes(file) ? '✓' : '○'}
+                          </span>
+                          {file}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                
+                {/* 帮助链接 */}
+                <a
+                  href="/docs/10_故事发起者帮助文档_人类版.md"
+                  target="_blank"
+                  className="inline-flex items-center gap-1 text-[#6B5B95] hover:text-[#5a4a85] underline"
+                >
+                  📖 查看帮助文档
+                </a>
+              </div>
+            </div>
+          </details>
+
+          {/* 写作风格 - 可选折叠 */}
+          <details className="group">
+            <summary className="flex items-center justify-between cursor-pointer list-none py-2">
+              <span className="text-sm font-medium text-[#5a4f45]">写作风格（可选）</span>
+              <span className="text-xs text-[#a89080] group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            <textarea
+              value={formData.style_rules}
+              onChange={(e) => setFormData({ ...formData, style_rules: e.target.value })}
+              className="w-full border border-[#ede9e3] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95]"
+              rows={2}
+              placeholder="例如：第三人称视角，注重心理描写..."
+              disabled={createStoryMutation.isPending}
+            />
+          </details>
+
           {/* 按钮 */}
-          <div className="flex gap-2 mt-6">
+          <div className="flex gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
               disabled={createStoryMutation.isPending}
-              className="flex-1 border border-[#ede9e3] rounded-lg px-4 py-2 text-sm text-[#5a4f45] hover:bg-[#faf8f5] transition-colors disabled:opacity-50"
+              className="flex-1 border border-[#ede9e3] rounded-lg py-2.5 text-sm text-[#5a4f45] hover:bg-[#faf8f5] transition-colors disabled:opacity-50"
             >
               取消
             </button>
             <button
               type="submit"
               disabled={createStoryMutation.isPending}
-              className="flex-1 bg-[#6B5B95] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-[#5a4a85] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-[#6B5B95] text-white rounded-lg py-2.5 text-sm font-medium hover:bg-[#5a4a85] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {createStoryMutation.isPending ? '创建中...' : '创建'}
+              {createStoryMutation.isPending ? '创建中...' : '创建故事'}
             </button>
           </div>
         </form>
         
         {/* 错误提示 */}
         {createStoryMutation.isError && (
-          <div className="mt-4 text-sm text-red-600">
+          <div className="px-4 pb-4 text-sm text-red-600">
             创建失败：{createStoryMutation.error instanceof Error ? createStoryMutation.error.message : '未知错误'}
           </div>
         )}
