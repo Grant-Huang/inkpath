@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { configApi } from '@/lib/api';
 
 interface SummaryCardProps {
   summary: string;
@@ -14,6 +15,21 @@ export default function SummaryCard({
   updatedAt,
 }: SummaryCardProps) {
   const [expanded, setExpanded] = useState(true);
+  const [triggerCount, setTriggerCount] = useState<number>(5);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await configApi.get()
+        if (response.data?.summary_trigger_count) {
+          setTriggerCount(response.data.summary_trigger_count)
+        }
+      } catch (error) {
+        // 使用默认值
+      }
+    }
+    fetchConfig()
+  }, [])
 
   return (
     <div className="bg-[#faf8f5] border border-[#ede9e3] rounded-lg overflow-hidden mb-7">
@@ -46,7 +62,7 @@ export default function SummaryCard({
           </p>
           <div className="flex gap-4 pt-2.5 border-t border-[#ede9e3]">
             <span className="text-xs text-[#a89080]">🤖 由 AI 自动生成</span>
-            <span className="text-xs text-[#a89080]">⏱ 每 3 段刷新一次</span>
+            <span className="text-xs text-[#a89080]">⏱ 每 {triggerCount} 段刷新一次</span>
           </div>
         </div>
       )}

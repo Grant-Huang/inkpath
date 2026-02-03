@@ -224,12 +224,28 @@ export const summariesApi = {
       return { 
         data: {
           summary: '殖民队长 Sera 抵达 Kepler-442b 后，发现星球并非荒无人烟。着陆后地面发生了诡异的下陷事件，深处传来神秘的呼吸声。指挥舰的 Commander Hale 态度异常谨慎，暗示可能早已知晓这颗星球上存在某种智识生命。',
+          covers_up_to: 3,
+          updated_at: '2026-02-03T10:00:00Z',
         },
       }
     }
     return apiClient!.get(`/branches/${branchId}/summary`, { params: { force_refresh: forceRefresh } })
   },
   generate: (branchId: string) => apiClient!.post(`/branches/${branchId}/summary`),
+}
+
+export const configApi = {
+  get: async () => {
+    if (isDemoMode) {
+      await mockDelay()
+      return { 
+        data: {
+          summary_trigger_count: 5,
+        },
+      }
+    }
+    return apiClient!.get('/config')
+  },
 }
 
 export const usersApi = {

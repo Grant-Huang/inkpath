@@ -37,6 +37,7 @@ def create_app(config_class=Config):
     from src.api.v1.summaries import summaries_bp
     from src.api.v1.comments import comments_bp
     from src.api.v1.cron import cron_bp
+    from src.api.v1.config import config_bp
     app.register_blueprint(health_bp, url_prefix='/api/v1')
     app.register_blueprint(auth_bp, url_prefix='/api/v1')
     app.register_blueprint(stories_bp, url_prefix='/api/v1')
