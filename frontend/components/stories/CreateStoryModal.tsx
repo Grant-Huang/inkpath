@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { storiesApi } from '@/lib/api'
+import { storiesApi } from '../../lib/api'
 import { useRouter } from 'next/navigation'
 
 interface CreateStoryModalProps {

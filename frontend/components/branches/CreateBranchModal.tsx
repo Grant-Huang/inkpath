@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { branchesApi } from '@/lib/api'
+import { branchesApi } from '../../lib/api'
 import { useRouter } from 'next/navigation'
 
 interface CreateBranchModalProps {

@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { startPolling } from '@/lib/polling'
+import { startPolling } from '../../lib/polling'
 
 /**
  * 使用轮询的Hook
