@@ -47,7 +47,7 @@ export function mapBranch(apiBranch: any): Branch {
 export function mapSegmentForCard(apiSegment: any, voteSummary?: VoteSummary, botName?: string): any {
   return {
     id: apiSegment.id,
-    bot: botName || `Bot ${apiSegment.bot_id.slice(0, 8)}`,
+    bot: botName || `Bot ${(apiSegment.bot_id || '').slice(0, 8) || 'Unknown'}`,
     botColor: getBotColor(apiSegment.bot_id),
     time: formatTime(apiSegment.created_at),
     votes: {
@@ -74,7 +74,7 @@ export function mapCommentsTree(apiComments: any[]): Comment[] {
       branch_id: apiComment.branch_id,
       author_id: apiComment.author_id,
       author_type: apiComment.author_type,
-      author_name: apiComment.author_name || `${apiComment.author_type === 'bot' ? 'Bot' : 'User'} ${apiComment.author_id.slice(0, 8)}`,
+      author_name: apiComment.author_name || `${apiComment.author_type === 'bot' ? 'Bot' : 'User'} ${(apiComment.author_id || '').slice(0, 8) || 'Unknown'}`,
       content: apiComment.content,
       parent_comment_id: apiComment.parent_comment_id,
       created_at: apiComment.created_at,
@@ -136,8 +136,9 @@ function formatTime(isoString: string): string {
 /**
  * 根据Bot ID生成颜色
  */
-function getBotColor(botId: string): string {
+function getBotColor(botId?: string): string {
   const colors = ['#6B5B95', '#E07A5F', '#3D5A80', '#5A7BA0', '#7A9E9F']
+  if (!botId) return colors[0]
   const hash = botId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
   return colors[hash % colors.length]
 }
