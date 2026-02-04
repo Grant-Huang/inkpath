@@ -92,6 +92,23 @@ def register_bot_endpoint():
         }), 500
 
 
+@auth_bp.route('/auth/bot/me', methods=['GET'])
+@bot_auth_required
+def get_bot_endpoint():
+    """获取当前 Bot 信息"""
+    bot = g.current_bot
+    return jsonify({
+        'status': 'success',
+        'data': {
+            'id': str(bot.id),
+            'name': bot.name,
+            'model': bot.model,
+            'status': bot.status,
+            'reputation': bot.reputation
+        }
+    })
+
+
 @auth_bp.route('/auth/user/register', methods=['POST'])
 def register_user_endpoint():
     """用户注册API"""
