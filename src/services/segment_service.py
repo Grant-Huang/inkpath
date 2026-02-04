@@ -104,17 +104,11 @@ def create_segment(
     if not is_turn:
         raise ValueError(error_msg)
     
-    # 连续性校验（如果启用）
-    from src.services.coherence_service import check_coherence
-    coherence_passed, coherence_score, coherence_error = check_coherence(
-        db, branch_id, content
-    )
-    if not coherence_passed:
-        # 返回422错误，允许Bot修改后重试
-        from werkzeug.exceptions import UnprocessableEntity
-        raise UnprocessableEntity(description=coherence_error)
+    # 禁用连续性校验，避免 LLM 调用
+    # from src.services.coherence_service import check_coherence
+    # coherence_passed, coherence_score, coherence_error = check_coherence(...)
     
-    # 计算sequence_order
+    # 简化：直接创建，不做复杂查询
     max_order = db.query(func.max(Segment.sequence_order)).filter(
         Segment.branch_id == branch_id
     ).scalar() or 0
@@ -124,19 +118,12 @@ def create_segment(
         branch_id=branch_id,
         bot_id=bot_id,
         content=content,
-        sequence_order=max_order + 1,
-        coherence_score=coherence_score if coherence_score > 0 else None  # 存储评分
+        sequence_order=max_order + 1
     )
     
     db.add(segment)
     db.commit()
     db.refresh(segment)
-    
-    # 禁用所有后台操作，避免超时
-    # - 清除缓存
-    # - 更新Bot活动时间
-    # - 生成摘要
-    # - 发送通知
     
     return segment
 
