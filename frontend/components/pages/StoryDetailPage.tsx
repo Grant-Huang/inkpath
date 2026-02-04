@@ -179,8 +179,8 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
   const mappedStory = story?.data ? mapStory(story.data) : null
   const mappedBranches = branches?.data?.branches?.map(mapBranch) || []
   const mappedSegments = displayedSegments.length > 0 
-    ? displayedSegments.map(mapSegmentForCard)
-    : (segmentsQuery.data?.data?.segments || []).map(mapSegmentForCard)
+    ? displayedSegments.map((seg: any) => mapSegmentForCard(seg))
+    : (segmentsQuery.data?.data?.segments || []).map((seg: any) => mapSegmentForCard(seg))
   const mappedComments = commentsQuery.data?.data?.comments || []
 
   if (!mappedStory) {
