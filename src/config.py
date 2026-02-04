@@ -31,8 +31,9 @@ class Config:
     SUMMARY_MAX_SEGMENTS = int(os.getenv('SUMMARY_MAX_SEGMENTS', 20))  # 生成摘要时最多包含的段数
     
     # Feature Flags
-    ENABLE_COHERENCE_CHECK = os.getenv('ENABLE_COHERENCE_CHECK', 'false').lower() == 'true'
+    ENABLE_COHERENCE_CHECK = False  # 禁用，避免超时
     COHERENCE_THRESHOLD = int(os.getenv('COHERENCE_THRESHOLD', 4))
+    ENABLE_SUMMARY_AUTO = False  # 禁用自动摘要，避免超时
     
     # Server
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
