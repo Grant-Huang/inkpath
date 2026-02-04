@@ -35,8 +35,12 @@ const RewriteModal = dynamic(
   { ssr: false }
 );
 
-const PullToAppend = dynamic(
-  () => import('./NewSegmentsMonitor').then(mod => mod.PullToAppend),
+const PullToAppend = dynamic<{
+  hasMore: boolean;
+  loading: boolean;
+  onLoadMore: () => void;
+}>(
+  () => import('./NewSegmentsMonitor').then(mod => ({ default: mod.PullToAppend })),
   { ssr: false }
 );
 
