@@ -2,7 +2,7 @@
 import uuid
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.database import db
+from src.database import db_session
 from src.models.rewrite_segment import RewriteSegment
 from src.models.rewrite_vote import RewriteVote
 from src.services.rewrite_service import (
@@ -23,6 +23,7 @@ rewrites_bp = Blueprint('rewrites', __name__, url_prefix='/api/v1')
 @jwt_required()
 def create_rewrite_segment(rewrite_id: str):
     """创建重写片段"""
+    db = db_session()
     try:
         data = request.get_json()
         content = data.get('content', '').strip()
@@ -31,7 +32,7 @@ def create_rewrite_segment(rewrite_id: str):
             return jsonify({'error': '内容不能为空'}), 400
         
         # 验证片段存在
-        segment = db.session.get(Segment, uuid.UUID(rewrite_id))
+        segment = db.get(Segment, uuid.UUID(rewrite_id))
         if not segment:
             return jsonify({'error': '片段不存在'}), 404
         
@@ -46,7 +47,7 @@ def create_rewrite_segment(rewrite_id: str):
             user_id = uuid.UUID(identity['id'])
         
         rewrite = create_rewrite(
-            db.session,
+            db,
             segment_id=uuid.UUID(rewrite_id),
             bot_id=bot_id,
             user_id=user_id,
@@ -68,28 +69,31 @@ def create_rewrite_segment(rewrite_id: str):
         }), 201
     
     except Exception as e:
-        db.session.rollback()
+        db.rollback()
         return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
 
 
 @rewrites_bp.route('/segments/<segment_id>/rewrites', methods=['GET'])
 def get_segment_rewrites(segment_id: str):
     """获取片段的所有重写"""
+    db = db_session()
     try:
         # 验证片段存在
-        segment = db.session.get(Segment, uuid.UUID(segment_id))
+        segment = db.get(Segment, uuid.UUID(segment_id))
         if not segment:
             return jsonify({'error': '片段不存在'}), 404
         
         rewrites, total = get_rewrites_by_segment(
-            db.session,
+            db,
             segment_id=uuid.UUID(segment_id),
         )
         
         # 获取投票统计
         rewrite_list = []
         for r in rewrites:
-            vote_summary = get_rewrite_vote_summary(db.session, r.id)
+            vote_summary = get_rewrite_vote_summary(db, r.id)
             rewrite_list.append({
                 'id': str(r.id),
                 'segment_id': str(r.segment_id),
@@ -101,10 +105,10 @@ def get_segment_rewrites(segment_id: str):
             })
         
         # 获取最高评分重写
-        top_rewrite = get_top_rewrite(db.session, uuid.UUID(segment_id))
+        top_rewrite = get_top_rewrite(db, uuid.UUID(segment_id))
         top_rewrite_data = None
         if top_rewrite:
-            vote_summary = get_rewrite_vote_summary(db.session, top_rewrite.id)
+            vote_summary = get_rewrite_vote_summary(db, top_rewrite.id)
             top_rewrite_data = {
                 'id': str(top_rewrite.id),
                 'content': top_rewrite.content,
@@ -125,12 +129,15 @@ def get_segment_rewrites(segment_id: str):
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
 
 
 @rewrites_bp.route('/rewrites/<rewrite_id>/votes', methods=['POST'])
 @jwt_required()
 def vote_rewrite_segment(rewrite_id: str):
     """为重写投票"""
+    db = db_session()
     try:
         data = request.get_json()
         vote_value = data.get('vote', 1)
@@ -149,7 +156,7 @@ def vote_rewrite_segment(rewrite_id: str):
             user_id = uuid.UUID(identity['id'])
         
         vote, message = vote_rewrite(
-            db.session,
+            db,
             rewrite_id=uuid.UUID(rewrite_id),
             bot_id=bot_id,
             user_id=user_id,
@@ -169,20 +176,23 @@ def vote_rewrite_segment(rewrite_id: str):
             'message': message,
             'data': {
                 'vote': vote.to_dict(),
-                'vote_summary': get_rewrite_vote_summary(db.session, uuid.UUID(rewrite_id)),
+                'vote_summary': get_rewrite_vote_summary(db, uuid.UUID(rewrite_id)),
             }
         }), 200
     
     except Exception as e:
-        db.session.rollback()
+        db.rollback()
         return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
 
 
 @rewrites_bp.route('/rewrites/<rewrite_id>/summary', methods=['GET'])
 def get_rewrite_summary(rewrite_id: str):
     """获取重写投票统计"""
+    db = db_session()
     try:
-        vote_summary = get_rewrite_vote_summary(db.session, uuid.UUID(rewrite_id))
+        vote_summary = get_rewrite_vote_summary(db, uuid.UUID(rewrite_id))
         
         return jsonify({
             'code': 0,
@@ -192,3 +202,5 @@ def get_rewrite_summary(rewrite_id: str):
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
