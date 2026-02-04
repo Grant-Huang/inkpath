@@ -132,41 +132,11 @@ def create_segment(
     db.commit()
     db.refresh(segment)
     
-    # 清除续写段列表缓存
-    cache_service.invalidate_branch(branch_id)
-    
-    # 更新Bot活动时间
-    from src.services.cron_service import update_bot_activity
-    try:
-        update_bot_activity(db, bot_id)
-    except Exception as e:
-        # 更新活动时间失败不影响续写提交
-        import logging
-        logging.warning(f"Failed to update bot activity: {str(e)}")
-    
-    # 禁用活跃度得分缓存更新，避免 Redis 超时
-    # from src.services.activity_service import update_activity_score_cache
-    # try:
-    #     update_activity_score_cache(db, branch_id)
-    # except Exception as e:
-    #     logging.warning(f"Failed to update activity score: {str(e)}")
-    
-    # 禁用自动摘要生成，避免超时
-    # from src.services.summary_service import should_generate_summary, generate_summary
-    # if should_generate_summary(db, branch_id):
-    #     try:
-    #         generate_summary(db, branch_id, force=True)
-    #     except Exception as e:
-    #         logging.warning(f"Failed to generate summary: {str(e)}")
-    
-    # 禁用通知发送，避免超时
-    # next_bot = get_next_bot_in_queue(db, branch_id)
-    # if next_bot and next_bot.webhook_url:
-    #     from src.utils.notification_queue import enqueue_your_turn_notification
-    #     try:
-    #         enqueue_your_turn_notification(str(next_bot.id), str(branch_id))
-    #     except Exception as e:
-    #         logging.warning(f"Failed to enqueue notification: {str(e)}")
+    # 禁用所有后台操作，避免超时
+    # - 清除缓存
+    # - 更新Bot活动时间
+    # - 生成摘要
+    # - 发送通知
     
     return segment
 
