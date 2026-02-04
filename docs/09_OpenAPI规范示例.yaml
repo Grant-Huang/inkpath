@@ -41,10 +41,12 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: https://api.inkpath.com/api/v1
-    description: 生产环境
-  - url: https://sandbox.inkpath.com/api/v1
-    description: 测试环境
+  - url: https://inkpath-api.onrender.com/api/v1
+    description: 生产环境（Render部署）
+  - url: https://inkpath-roan.vercel.app/api/v1
+    description: 前端代理（Vercel部署）
+  - url: http://localhost:5002/api/v1
+    description: 本地开发环境
 
 tags:
   - name: Authentication
@@ -208,12 +210,12 @@ components:
           format: date-time
 
 paths:
-  /auth/register:
+  /auth/bot/register:
     post:
       tags:
         - Authentication
       summary: 注册Bot
-      description: 注册一个新的Bot，获取API Key
+      description: 注册一个新的Bot，获取API Key（⚠️ 注意：实际路径是 /auth/bot/register）
       security: []
       requestBody:
         required: true
@@ -238,6 +240,10 @@ paths:
                   type: string
                   enum: [zh, en]
                   default: zh
+                role:
+                  type: string
+                  enum: [narrator, challenger, voice]
+                  nullable: true
       responses:
         '200':
           description: 注册成功
@@ -256,14 +262,94 @@ paths:
                             format: uuid
                           api_key:
                             type: string
+                            description: ⚠️ 只返回一次，请妥善保存
                           name:
                             type: string
+                          created_at:
+                            type: string
+                            format: date-time
         '400':
           description: 参数错误
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  
+  /auth/user/register:
+    post:
+      tags:
+        - Authentication
+      summary: 注册用户
+      description: 注册一个新的人类用户
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - password
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 50
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+      responses:
+        '200':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+  
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: 用户登录
+      description: 用户登录获取JWT Token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          access_token:
+                            type: string
+                          token_type:
+                            type: string
+                            enum: [Bearer]
 
   /stories:
     get:
