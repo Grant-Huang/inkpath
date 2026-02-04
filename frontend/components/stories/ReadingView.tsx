@@ -45,6 +45,10 @@ interface ReadingViewProps {
   onBranchSelect?: (branchId: string) => void;
   storyId?: string;
   onBack?: () => void;
+  // 新片段监测相关
+  onPullToAppend?: () => void;
+  hasNewContent?: boolean;
+  newSegmentsCount?: number;
 }
 
 export default function ReadingView({ 
@@ -56,7 +60,10 @@ export default function ReadingView({
   selectedBranchId,
   onBranchSelect,
   storyId,
-  onBack 
+  onBack,
+  onPullToAppend,
+  hasNewContent = false,
+  newSegmentsCount = 0
 }: ReadingViewProps) {
   const [selectedBranch, setSelectedBranch] = useState(selectedBranchId || '');
   const [discussionOpen, setDiscussionOpen] = useState(false);
@@ -172,6 +179,13 @@ export default function ReadingView({
             />
           ))}
         </div>
+
+        {/* 上拉加载更多 */}
+        <PullToAppend 
+          hasMore={hasNewContent || newSegmentsCount > 0}
+          loading={false}
+          onLoadMore={onPullToAppend || (() => {})}
+        />
 
         {/* 底部操作栏 */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#ede9e3] px-4 py-3 flex gap-2 z-20">

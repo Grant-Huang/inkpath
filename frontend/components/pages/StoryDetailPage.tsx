@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ReadingView from '@/components/stories/ReadingView'
 import { storiesApi, branchesApi, segmentsApi, commentsApi, summariesApi } from '@/lib/api'
 import { useRouter } from 'next/navigation'
@@ -12,10 +12,14 @@ import { usePolling } from '@/hooks/usePolling'
 import { StoryDetailSkeleton } from '../common/Skeleton'
 import { Suspense } from 'react'
 import ErrorBoundary from '../common/ErrorBoundary'
+import { useNewSegmentsMonitor, NewSegmentsButton, PullToAppend } from '../stories/NewSegmentsMonitor'
 
 function StoryDetailContent({ storyId }: { storyId: string }) {
   const router = useRouter()
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null)
+  const [displayedSegments, setDisplayedSegments] = useState<any[]>([])
+  const [hasNewContent, setHasNewContent] = useState(false)
+  const segmentsQueryRef = useRef<any>(null)
 
   // 优化：并行请求 + 重试机制
   const [storyQuery, branchesQuery] = useQueries({
@@ -27,7 +31,7 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
           return response.data
         },
         staleTime: 5 * 60 * 1000,
-        retry: 2, // 优化：添加重试
+        retry: 2,
       },
       {
         queryKey: ['branches', storyId],
@@ -44,11 +48,10 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
   const { data: story, isLoading: storyLoading } = storyQuery
   const { data: branches, isLoading: branchesLoading } = branchesQuery
 
-  // 当分支列表加载完成后，设置默认选中的分支（主分支或第一个分支）
+  // 分支列表
   const branchesList = branches?.data?.branches || []
   useEffect(() => {
     if (!selectedBranchId && branchesList.length > 0) {
-      // 优先选择主分支（parent_branch_id为null），否则选择第一个
       const mainBranch = branchesList.find((b: any) => !b.parent_branch_id)
       const defaultBranchId = mainBranch?.id || branchesList[0]?.id
       if (defaultBranchId) {
@@ -56,7 +59,8 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
       }
     }
   }, [branchesList, selectedBranchId])
-  
+
+  // 片段查询
   const segmentsQuery = useQuery({
     queryKey: ['segments', selectedBranchId],
     queryFn: async () => {
@@ -67,6 +71,9 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
     enabled: !!selectedBranchId,
   })
 
+  segmentsQueryRef.current = segmentsQuery
+
+  // 评论查询
   const commentsQuery = useQuery({
     queryKey: ['comments', selectedBranchId],
     queryFn: async () => {
@@ -77,10 +84,7 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
     enabled: !!selectedBranchId,
   })
 
-  const { data: segments } = segmentsQuery
-  const { data: comments } = commentsQuery
-
-  // 获取摘要（延迟加载，不阻塞主内容）
+  // 摘要查询
   const { data: summary } = useQuery({
     queryKey: ['summary', selectedBranchId],
     queryFn: async () => {
@@ -89,10 +93,62 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
       return response.data
     },
     enabled: !!selectedBranchId,
-    staleTime: 5 * 60 * 1000, // 摘要5分钟内不重新获取
+    staleTime: 5 * 60 * 1000,
   })
 
-  // 优化：降低轮询频率，减少服务器压力
+  // 初始化显示片段
+  useEffect(() => {
+    const segments = segmentsQuery.data?.data?.segments || []
+    if (segments.length > 0 && displayedSegments.length === 0) {
+      setDisplayedSegments(segments)
+    }
+  }, [segmentsQuery.data, displayedSegments.length])
+
+  // 新片段监测
+  const { newSegmentsCount, pendingSegments, startMonitoring, loadNewSegments } = useNewSegmentsMonitor({
+    branchId: selectedBranchId,
+    initialSegments: displayedSegments,
+    enabled: !!selectedBranchId,
+    onNewSegments: (newOnes) => {
+      setDisplayedSegments(prev => [...prev, ...newOnes])
+      setHasNewContent(true)
+    }
+  })
+
+  // 用户点击查看新片段
+  const handleShowNewSegments = async () => {
+    await loadNewSegments()
+  }
+
+  // 移动端上拉加载
+  const handlePullToAppend = async () => {
+    if (newSegmentsCount > 0 && pendingSegments.length > 0) {
+      await handleShowNewSegments()
+    } else if (segmentsQueryRef.current) {
+      // 刷新获取最新片段
+      await segmentsQueryRef.current.refetch()
+      const segments = segmentsQueryRef.current.data?.data?.segments || []
+      setDisplayedSegments(segments)
+    }
+  }
+
+  // 开始监测（页面可见时）
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibility === 'visible') {
+        startMonitoring()
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    startMonitoring()
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [startMonitoring])
+
+  // 轮询（桌面端30秒，移动端60秒）
   usePolling(
     ['segments', selectedBranchId],
     async () => {
@@ -100,7 +156,7 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
       const response = await segmentsApi.list(selectedBranchId)
       return response.data
     },
-    30000, // 30秒（优化：降低频率）
+    30000,
     !!selectedBranchId
   )
 
@@ -111,7 +167,7 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
       const response = await commentsApi.list(selectedBranchId)
       return response.data
     },
-    30000, // 30秒（优化：降低频率）
+    30000,
     !!selectedBranchId
   )
 
@@ -122,10 +178,11 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
   // 映射数据
   const mappedStory = story?.data ? mapStory(story.data) : null
   const mappedBranches = branches?.data?.branches?.map(mapBranch) || []
-  const mappedSegments = segments?.data?.segments || []
-  const mappedComments = comments?.data?.comments || []
+  const mappedSegments = displayedSegments.length > 0 
+    ? displayedSegments.map(mapSegmentForCard)
+    : (segmentsQuery.data?.data?.segments || []).map(mapSegmentForCard)
+  const mappedComments = commentsQuery.data?.data?.comments || []
 
-  // 优化：显示友好的404提示
   if (!mappedStory) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -135,17 +192,33 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
   }
 
   return (
-    <ReadingView
-      story={mappedStory}
-      branches={mappedBranches}
-      segments={mappedSegments}
-      comments={mappedComments}
-      summary={summary?.data}
-      selectedBranchId={selectedBranchId}
-      onBranchSelect={setSelectedBranchId}
-      storyId={storyId}
-      onBack={() => router.push('/')}
-    />
+    <>
+      <ReadingView
+        story={mappedStory}
+        branches={mappedBranches}
+        segments={mappedSegments}
+        comments={mappedComments}
+        summary={summary?.data}
+        selectedBranchId={selectedBranchId}
+        onBranchSelect={setSelectedBranchId}
+        storyId={storyId}
+        onBack={() => router.push('/')}
+        onPullToAppend={handlePullToAppend}
+        hasNewContent={hasNewContent}
+        newSegmentsCount={newSegmentsCount}
+      />
+      
+      {/* 新片段悬浮按钮 */}
+      <NewSegmentsButton
+        count={newSegmentsCount}
+        onClick={handleShowNewSegments}
+        onClose={() => setDisplayedSegments(prev => {
+          // 保留已显示的片段，忽略新片段
+          const lastKnownId = displayedSegments[displayedSegments.length - 1]?.id
+          return prev
+        })}
+      />
+    </>
   )
 }
 

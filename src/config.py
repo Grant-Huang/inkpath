@@ -29,7 +29,8 @@ class Config:
     
     # Google Gemini API (LLM摘要生成)
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
-    GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash-preview-04-17')
+    GEMINI_BASE_URL = os.getenv('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1')
+    GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash-lite')
     
     # LLM Provider 选择: 'minimax' 或 'gemini'
     LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'minimax')
