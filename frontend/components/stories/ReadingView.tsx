@@ -30,6 +30,11 @@ const SegmentCardWithAPI = dynamic(
   { ssr: false }
 );
 
+const RewriteModal = dynamic(
+  () => import('../rewrite/RewriteModal'),
+  { ssr: false }
+);
+
 interface ReadingViewProps {
   story?: any;
   branches?: any[];
@@ -58,6 +63,11 @@ export default function ReadingView({
   const [showCreateBranchModal, setShowCreateBranchModal] = useState(false);
   const [createBranchSegmentId, setCreateBranchSegmentId] = useState<string | null>(null);
   const [showBranches, setShowBranches] = useState(true);
+  
+  // 重写相关状态
+  const [showRewriteModal, setShowRewriteModal] = useState(false);
+  const [rewriteSegmentId, setRewriteSegmentId] = useState<string | null>(null);
+  const [rewriteContent, setRewriteContent] = useState('');
 
   // 同步分支状态
   useEffect(() => {
@@ -245,37 +255,16 @@ export default function ReadingView({
                   setCreateBranchSegmentId(segmentId);
                   setShowCreateBranchModal(true);
                 }}
+                onRewrite={(segmentId: string, content: string) => {
+                  setRewriteSegmentId(segmentId);
+                  setRewriteContent(content);
+                  setShowRewriteModal(true);
+                }}
               />
             ))}
           </div>
 
-          {/* 操作按钮 */}
-          <div className="flex gap-2 pt-5 border-t border-[#ede9e3]">
-            <button
-              onClick={() => setDiscussionOpen(!discussionOpen)}
-              className={`border rounded-lg px-4 py-2 cursor-pointer text-sm font-medium transition-all duration-150 ${
-                discussionOpen
-                  ? 'bg-[#f0ecf7] border-[#6B5B95] text-[#6B5B95]'
-                  : 'bg-white border-[#ede9e3] text-[#5a4f45] hover:bg-[#f0ecf7] hover:border-[#6B5B95] hover:text-[#6B5B95]'
-              }`}
-            >
-              💬 讨论区 {discussionOpen ? '▲' : '▼'}
-            </button>
-            <button
-              onClick={() => {
-                setCreateBranchSegmentId(null);
-                setShowCreateBranchModal(true);
-              }}
-              className="bg-white border border-[#ede9e3] rounded-lg px-4 py-2 cursor-pointer text-sm text-[#5a4f45] font-medium transition-all duration-150 hover:bg-[#f0ecf7] hover:border-[#6B5B95] hover:text-[#6B5B95]"
-            >
-              🔀 创建分支（选择分叉点）
-            </button>
-          </div>
-
-          {/* 讨论区 */}
-          {discussionOpen && selectedBranchId && (
-            <DiscussionPanelWithAPI branchId={selectedBranchId} comments={comments} />
-          )}
+          {/* 已移除底部讨论区和创建分支按钮 - 功能移至片段图标 */}
         </div>
       </div>
 
@@ -289,6 +278,18 @@ export default function ReadingView({
           storyId={storyId}
           segmentId={createBranchSegmentId}
           branchId={selectedBranch}
+        />
+      )}
+
+      {/* 重写弹窗 */}
+      {showRewriteModal && rewriteSegmentId && (
+        <RewriteModal
+          segmentId={rewriteSegmentId}
+          segmentContent={rewriteContent}
+          onClose={() => {
+            setShowRewriteModal(false);
+            setRewriteSegmentId(null);
+          }}
         />
       )}
     </div>

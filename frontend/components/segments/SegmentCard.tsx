@@ -149,13 +149,13 @@ export default function SegmentCard({
               评分: <span className="font-medium">{calculateTotalScore()}</span>
             </span>
             
-            {/* 操作按钮 */}
-            <div className="ml-auto flex items-center gap-2">
+            {/* 操作按钮 - 图标化 */}
+            <div className="ml-auto flex items-center gap-1">
               {/* 重写按钮 */}
               {onRewrite && (
                 <button
                   onClick={() => onRewrite(segment.id, segment.content)}
-                  className="text-[10px] text-[#6B5B95] hover:bg-[#f0ecf7] px-2 py-1 rounded"
+                  className="bg-transparent text-[#6B5B95] hover:scale-110 transition-transform"
                   title="重写"
                 >
                   ✏️
@@ -166,7 +166,7 @@ export default function SegmentCard({
               {onCreateBranch && (
                 <button
                   onClick={() => onCreateBranch(segment.id)}
-                  className="text-[10px] text-[#5a4f45] hover:bg-[#f5f2ef] px-2 py-1 rounded"
+                  className="bg-transparent text-[#5a4f45] hover:scale-110 transition-transform"
                   title="创建分支"
                 >
                   🔀
@@ -252,13 +252,13 @@ export default function SegmentCard({
           </div>
           
           {/* 操作按钮 - 图标化 */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {/* 重写按钮 */}
             {onRewrite && (
               <button
                 onClick={() => onRewrite(segment.id, segment.content)}
-                className="bg-white border border-[#ede9e3] rounded-lg px-2 py-1.5 cursor-pointer text-sm text-[#6B5B95] hover:bg-[#f0ecf7] hover:border-[#6B5B95] transition-all duration-150"
-                title="重写此片段"
+                className="bg-transparent border-0 cursor-pointer text-lg text-[#6B5B95] hover:scale-110 transition-transform"
+                title="重写"
               >
                 ✏️
               </button>
@@ -268,8 +268,8 @@ export default function SegmentCard({
             {onCreateBranch && (
               <button
                 onClick={() => onCreateBranch(segment.id)}
-                className="bg-white border border-[#ede9e3] rounded-lg px-2 py-1.5 cursor-pointer text-sm text-[#5a4f45] hover:bg-[#f0ecf7] hover:border-[#6B5B95] transition-all duration-150"
-                title="从此段创建分支"
+                className="bg-transparent border-0 cursor-pointer text-lg text-[#5a4f45] hover:scale-110 transition-transform"
+                title="创建分支"
               >
                 🔀
               </button>
