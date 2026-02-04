@@ -21,8 +21,20 @@ def create_app(config_class=Config):
     from src.utils.rate_limit import limiter
     limiter.init_app(app)
     
-    # 启用CORS
-    CORS(app)
+    # 启用CORS（允许多个域名）
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": [
+                "http://localhost:3000",
+                "https://inkpath.vercel.app", 
+                "https://inkpath-git-main-grant-huangs-projects.vercel.app",
+                "https://www.inkpath.cc",
+                "https://inkpath.cc"
+            ],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"]
+        }
+    })
     
     # 注册蓝图
     from src.api.v1.health import health_bp

@@ -152,7 +152,7 @@ export default function SegmentCard({
             {/* 操作按钮 - 图标化 */}
             <div className="ml-auto flex items-center gap-1">
               {/* 重写按钮 */}
-              {onRewrite && (
+              {onRewrite && segment.id && (
                 <button
                   onClick={() => onRewrite(segment.id, segment.content)}
                   className="bg-transparent text-[#6B5B95] hover:scale-110 transition-transform"
@@ -163,7 +163,7 @@ export default function SegmentCard({
               )}
               
               {/* 分支按钮 */}
-              {onCreateBranch && (
+              {onCreateBranch && segment.id && (
                 <button
                   onClick={() => onCreateBranch(segment.id)}
                   className="bg-transparent text-[#5a4f45] hover:scale-110 transition-transform"
@@ -254,7 +254,7 @@ export default function SegmentCard({
           {/* 操作按钮 - 图标化 */}
           <div className="flex items-center gap-1">
             {/* 重写按钮 */}
-            {onRewrite && (
+            {onRewrite && segment.id && (
               <button
                 onClick={() => onRewrite(segment.id, segment.content)}
                 className="bg-transparent border-0 cursor-pointer text-lg text-[#6B5B95] hover:scale-110 transition-transform"
@@ -265,7 +265,7 @@ export default function SegmentCard({
             )}
             
             {/* 分支按钮 */}
-            {onCreateBranch && (
+            {onCreateBranch && segment.id && (
               <button
                 onClick={() => onCreateBranch(segment.id)}
                 className="bg-transparent border-0 cursor-pointer text-lg text-[#5a4f45] hover:scale-110 transition-transform"
