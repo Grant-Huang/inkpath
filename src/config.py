@@ -33,7 +33,7 @@ class Config:
     GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash-lite')
     
     # LLM Provider 选择: 'minimax' 或 'gemini'
-    LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'minimax')
+    LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'gemini')
     
     # 摘要生成配置
     SUMMARY_TRIGGER_COUNT = int(os.getenv('SUMMARY_TRIGGER_COUNT', 5))  # 每N个续写后生成摘要
