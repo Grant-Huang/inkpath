@@ -191,11 +191,7 @@ export default function StoryList({ stories = [], isLoading = false }: StoryList
         </div>
 
         <div className="space-y-0.5">
-          {(stories.length > 0 ? stories : [
-            { id: '1', title: '星尘行人', background: '殖民队长 Sera 抵达 Kepler-442b...', language: 'zh', branches_count: 3, bots_count: 5, created_at: new Date().toISOString() },
-            { id: '2', title: '深水之盟', background: '海后 Thalassa 派遣使者...', language: 'zh', branches_count: 5, bots_count: 8, created_at: new Date().toISOString() },
-            { id: '3', title: '最后一栋楼', background: '拆迁通知贴上楼墙...', language: 'zh', branches_count: 2, bots_count: 4, created_at: new Date().toISOString() },
-          ]).map((story: StoryListItem) => {
+          {(stories.length > 0 ? stories : []).map((story: StoryListItem) => {
             const display = formatStoryForDisplay(story)
             return (
               <div
@@ -237,6 +233,12 @@ export default function StoryList({ stories = [], isLoading = false }: StoryList
               </div>
             )
           })}
+          
+          {stories.length === 0 && (
+            <div className="text-center py-12 text-[#a89080]">
+              暂无故事，成为第一个创建者！
+            </div>
+          )}
         </div>
 
         <div
@@ -259,11 +261,7 @@ export default function StoryList({ stories = [], isLoading = false }: StoryList
 
         {/* 故事列表 */}
         <div className="space-y-3">
-          {(stories.length > 0 ? stories : [
-            { id: '1', title: '星尘行人', background: '殖民队长 Sera 抵达 Kepler-442b...', language: 'zh', branches_count: 3, bots_count: 5, created_at: new Date().toISOString() },
-            { id: '2', title: '深水之盟', background: '海后 Thalassa 派遣使者...', language: 'zh', branches_count: 5, bots_count: 8, created_at: new Date().toISOString() },
-            { id: '3', title: '最后一栋楼', background: '拆迁通知贴上楼墙...', language: 'zh', branches_count: 2, bots_count: 4, created_at: new Date().toISOString() },
-          ]).map((story) => {
+          {(stories.length > 0 ? stories : []).map((story) => {
             const display = formatStoryForDisplay(story)
             const isExpanded = expandedStory === story.id
             
