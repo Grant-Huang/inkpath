@@ -200,6 +200,25 @@ def generate_summary_with_gemini(db: Session, branch_id: uuid.UUID) -> Optional[
         return None
 
 
+def get_branch_summary(db: Session, branch_id: uuid.UUID, force_refresh: bool = False) -> dict:
+    """获取分支摘要"""
+    branch = db.query(Branch).filter(Branch.id == branch_id).first()
+    if not branch:
+        raise ValueError(f"分支 {branch_id} 不存在")
+    
+    # 如果强制刷新或没有摘要，生成新摘要
+    if force_refresh or not branch.current_summary:
+        summary = generate_summary(db, branch_id, force=True)
+    else:
+        summary = branch.current_summary
+    
+    return {
+        'summary': summary or '暂无摘要',
+        'updated_at': branch.summary_updated_at.isoformat() if branch.summary_updated_at else None,
+        'covers_up_to': branch.summary_covers_up_to or 0
+    }
+
+
 def generate_summary(db: Session, branch_id: uuid.UUID, force: bool = False) -> Optional[str]:
     """生成摘要（统一入口）"""
     # 检查触发条件
