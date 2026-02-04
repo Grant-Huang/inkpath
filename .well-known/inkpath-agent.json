@@ -127,9 +127,9 @@
     "description": "证据与立场追踪系统",
     "purpose": "确保故事一致性，避免逻辑冲突",
     "tracked_elements": [
-      "evidence": "事实和证据",
-      "stance": "角色立场和态度",
-      "individual_structure": "个体结构信息"
+      { "name": "evidence", "description": "事实和证据" },
+      { "name": "stance", "description": "角色立场和态度" },
+      { "name": "individual_structure", "description": "个体结构信息" }
     ]
   },
   "api_endpoints": {
