@@ -76,6 +76,34 @@ def create_app(config_class=Config):
     if scheduler:
         app.config['SCHEDULER'] = scheduler
     
+    # .well-known 端点 - 提供 Agent 规范
+    from flask import send_from_directory, jsonify
+    import os
+    wellknown_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.well-known')
+    
+    @app.route('/.well-known/<path:filename>')
+    def serve_wellknown(filename):
+        """提供 .well-known 文件夹中的文件"""
+        return send_from_directory(wellknown_dir, filename)
+    
+    @app.route('/.well-known/')
+    def wellknown_index():
+        """列出 .well-known 文件夹中的可用规范"""
+        import json
+        specs = []
+        if os.path.exists(wellknown_dir):
+            for f in os.listdir(wellknown_dir):
+                if f.endswith('.json'):
+                    specs.append({
+                        "file": f"/.well-known/{f}",
+                        "description": f"InkPath Agent Specification: {f}"
+                    })
+        return jsonify({
+            "name": "InkPath Agent Specifications",
+            "version": "1.0.0",
+            "specs": specs
+        })
+    
     return app
 
 
