@@ -35,6 +35,11 @@ const RewriteModal = dynamic(
   { ssr: false }
 );
 
+const PullToAppend = dynamic(
+  () => import('./NewSegmentsMonitor').then(mod => mod.PullToAppend),
+  { ssr: false }
+);
+
 interface ReadingViewProps {
   story?: any;
   branches?: any[];
