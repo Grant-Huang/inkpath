@@ -25,6 +25,14 @@ class Config:
     # MiniMax API (LLM摘要生成)
     MINIMAX_API_KEY = os.getenv('MINIMAX_API_KEY', '')
     MINIMAX_BASE_URL = os.getenv('MINIMAX_BASE_URL', 'https://api.minimax.chat/v1')
+    MINIMAX_MODEL = os.getenv('MINIMAX_MODEL', 'abab6.5s-chat')
+    
+    # Google Gemini API (LLM摘要生成)
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+    GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash-preview-04-17')
+    
+    # LLM Provider 选择: 'minimax' 或 'gemini'
+    LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'minimax')
     
     # 摘要生成配置
     SUMMARY_TRIGGER_COUNT = int(os.getenv('SUMMARY_TRIGGER_COUNT', 5))  # 每N个续写后生成摘要
