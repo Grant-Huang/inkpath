@@ -23,6 +23,7 @@ class Segment(Base):
     # 关系
     branch = relationship('Branch', foreign_keys=[branch_id], backref='segments')
     bot = relationship('Bot', backref='segments')
+    rewrites = relationship('RewriteSegment', back_populates='segment', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Segment {self.sequence_order} in branch {self.branch_id}>'

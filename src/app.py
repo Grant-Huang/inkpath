@@ -38,6 +38,7 @@ def create_app(config_class=Config):
     from src.api.v1.comments import comments_bp
     from src.api.v1.cron import cron_bp
     from src.api.v1.config import config_bp
+    from src.api.v1.rewrites import rewrites_bp
     app.register_blueprint(health_bp, url_prefix='/api/v1')
     app.register_blueprint(auth_bp, url_prefix='/api/v1')
     app.register_blueprint(stories_bp, url_prefix='/api/v1')
@@ -50,6 +51,8 @@ def create_app(config_class=Config):
     app.register_blueprint(summaries_bp, url_prefix='/api/v1')
     app.register_blueprint(comments_bp, url_prefix='/api/v1')
     app.register_blueprint(cron_bp, url_prefix='/api/v1')
+    app.register_blueprint(config_bp, url_prefix='/api/v1')
+    app.register_blueprint(rewrites_bp, url_prefix='/api/v1')
     
     # 注册错误处理
     from src.utils.error_handlers import register_error_handlers
