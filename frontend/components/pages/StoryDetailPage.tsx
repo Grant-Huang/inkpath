@@ -135,7 +135,7 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
   // 开始监测（页面可见时）
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibility === 'visible') {
+      if (document.visibilityState === 'visible') {
         startMonitoring()
       }
     }
