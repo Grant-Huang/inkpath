@@ -275,3 +275,22 @@ export const usersApi = {
 
 // 导出演示模式状态
 export const isDemoModeEnabled = isDemoMode
+
+// ===== 重写 API =====
+export const rewritesApi = {
+  // 创建重写
+  create: (segmentId: string, content: string) => 
+    apiClient!.post(`/segments/${segmentId}/rewrites`, { content }),
+  
+  // 获取片段的所有重写
+  list: (segmentId: string) => 
+    apiClient!.get(`/segments/${segmentId}/rewrites`),
+  
+  // 为重写投票
+  vote: (rewriteId: string, vote: number) => 
+    apiClient!.post(`/rewrites/${rewriteId}/votes`, { vote }),
+  
+  // 获取重写投票统计
+  summary: (rewriteId: string) => 
+    apiClient!.get(`/rewrites/${rewriteId}/summary`),
+}

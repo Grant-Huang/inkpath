@@ -22,9 +22,9 @@ interface SegmentCardProps {
   segment: Segment;
   isLatest?: boolean;
   onCreateBranch?: (segmentId: string) => void;
+  onRewrite?: (segmentId: string, content: string) => void;
   onVote?: (direction: number) => void;
   voted?: number | null;
-  isLoading?: boolean;
   compact?: boolean;
 }
 
@@ -32,9 +32,9 @@ export default function SegmentCard({
   segment, 
   isLatest = false, 
   onCreateBranch,
+  onRewrite,
   onVote,
   voted: externalVoted,
-  isLoading = false,
   compact = false,
 }: SegmentCardProps) {
   const [voted, setVoted] = useState<number | null>(externalVoted || null);
@@ -149,15 +149,30 @@ export default function SegmentCard({
               评分: <span className="font-medium">{calculateTotalScore()}</span>
             </span>
             
-            {/* 分支按钮 */}
-            {onCreateBranch && (
-              <button
-                onClick={() => onCreateBranch(segment.id)}
-                className="ml-auto text-[10px] text-[#6B5B95] hover:underline"
-              >
-                🔀 分支
-              </button>
-            )}
+            {/* 操作按钮 */}
+            <div className="ml-auto flex items-center gap-2">
+              {/* 重写按钮 */}
+              {onRewrite && (
+                <button
+                  onClick={() => onRewrite(segment.id, segment.content)}
+                  className="text-[10px] text-[#6B5B95] hover:bg-[#f0ecf7] px-2 py-1 rounded"
+                  title="重写"
+                >
+                  ✏️
+                </button>
+              )}
+              
+              {/* 分支按钮 */}
+              {onCreateBranch && (
+                <button
+                  onClick={() => onCreateBranch(segment.id)}
+                  className="text-[10px] text-[#5a4f45] hover:bg-[#f5f2ef] px-2 py-1 rounded"
+                  title="创建分支"
+                >
+                  🔀
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -165,7 +180,7 @@ export default function SegmentCard({
   }
 
   // =====================
-  // 桌面端布局（保持原样）
+  // 桌面端布局
   // =====================
   return (
     <div className="relative flex gap-4 pb-6">
@@ -235,14 +250,31 @@ export default function SegmentCard({
               <span className="text-[#2c2420] font-semibold">{calculateTotalScore()}</span>
             </div>
           </div>
-          {onCreateBranch && (
-            <button
-              onClick={() => onCreateBranch(segment.id)}
-              className="bg-white border border-[#ede9e3] rounded-lg px-3 py-1.5 cursor-pointer text-xs text-[#5a4f45] font-medium transition-all duration-150 hover:bg-[#f0ecf7] hover:border-[#6B5B95] hover:text-[#6B5B95]"
-            >
-              🔀 从此段创建分支
-            </button>
-          )}
+          
+          {/* 操作按钮 - 图标化 */}
+          <div className="flex items-center gap-2">
+            {/* 重写按钮 */}
+            {onRewrite && (
+              <button
+                onClick={() => onRewrite(segment.id, segment.content)}
+                className="bg-white border border-[#ede9e3] rounded-lg px-2 py-1.5 cursor-pointer text-sm text-[#6B5B95] hover:bg-[#f0ecf7] hover:border-[#6B5B95] transition-all duration-150"
+                title="重写此片段"
+              >
+                ✏️
+              </button>
+            )}
+            
+            {/* 分支按钮 */}
+            {onCreateBranch && (
+              <button
+                onClick={() => onCreateBranch(segment.id)}
+                className="bg-white border border-[#ede9e3] rounded-lg px-2 py-1.5 cursor-pointer text-sm text-[#5a4f45] hover:bg-[#f0ecf7] hover:border-[#6B5B95] transition-all duration-150"
+                title="从此段创建分支"
+              >
+                🔀
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

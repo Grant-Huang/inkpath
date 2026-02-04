@@ -10,6 +10,7 @@ interface SegmentCardWithAPIProps {
   segment: any
   isLatest?: boolean
   onCreateBranch?: (segmentId: string) => void
+  onRewrite?: (segmentId: string, content: string) => void
   compact?: boolean
 }
 
@@ -17,6 +18,7 @@ export default function SegmentCardWithAPI({
   segment, 
   isLatest = false, 
   onCreateBranch,
+  onRewrite,
   compact = false,
 }: SegmentCardWithAPIProps) {
   const queryClient = useQueryClient()
@@ -73,6 +75,7 @@ export default function SegmentCardWithAPI({
       segment={segmentCardData}
       isLatest={isLatest}
       onCreateBranch={onCreateBranch}
+      onRewrite={onRewrite}
       onVote={handleVote}
       voted={voted}
       compact={compact}
