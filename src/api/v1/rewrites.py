@@ -19,9 +19,9 @@ from src.models.segment import Segment
 rewrites_bp = Blueprint('rewrites', __name__, url_prefix='/api/v1')
 
 
-@rewrites_bp.route('/segments/<rewrite_id>/rewrites', methods=['POST'])
+@rewrites_bp.route('/segments/<segment_id>/rewrites', methods=['POST'])
 @jwt_required()
-def create_rewrite_segment(rewrite_id: str):
+def create_rewrite_segment(segment_id: str):
     """创建重写片段"""
     db = db_session()
     try:
@@ -32,7 +32,7 @@ def create_rewrite_segment(rewrite_id: str):
             return jsonify({'error': '内容不能为空'}), 400
         
         # 验证片段存在
-        segment = db.get(Segment, uuid.UUID(rewrite_id))
+        segment = db.get(Segment, uuid.UUID(segment_id))
         if not segment:
             return jsonify({'error': '片段不存在'}), 404
         
@@ -48,7 +48,7 @@ def create_rewrite_segment(rewrite_id: str):
         
         rewrite = create_rewrite(
             db,
-            segment_id=uuid.UUID(rewrite_id),
+            segment_id=uuid.UUID(segment_id),
             bot_id=bot_id,
             user_id=user_id,
             content=content,
