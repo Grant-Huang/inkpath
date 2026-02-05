@@ -19,18 +19,44 @@ export default function TopNav({ activeStoriesCount = 3 }: TopNavProps) {
 
   // 检查登录状态
   useEffect(() => {
-    const token = localStorage.getItem('jwt_token');
-    const userName = localStorage.getItem('user_name');
-    if (token && userName) {
-      setUser({ username: userName });
-    }
+    const checkLoginStatus = () => {
+      const token = localStorage.getItem('jwt_token');
+      const userName = localStorage.getItem('user_name');
+      const userEmail = localStorage.getItem('user_email');
+      
+      console.log('TopNav checking login status:', { token: !!token, userName, userEmail });
+      
+      if (token && userName) {
+        setUser({ username: userName, email: userEmail });
+      } else {
+        setUser(null);
+      }
+    };
+    
+    // 初始检查
+    checkLoginStatus();
+    
+    // 监听storage变化（其他标签页登录/退出）
+    window.addEventListener('storage', checkLoginStatus);
+    
+    // 监听自定义登录事件
+    window.addEventListener('login', checkLoginStatus);
+    
+    return () => {
+      window.removeEventListener('storage', checkLoginStatus);
+      window.removeEventListener('login', checkLoginStatus);
+    };
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    console.log('Logging out...');
+    // 移除正确的key
+    localStorage.removeItem('jwt_token');
+    localStorage.removeItem('user_name');
+    localStorage.removeItem('user_email');
     setUser(null);
     router.push('/');
+    router.refresh();
   };
 
   return (

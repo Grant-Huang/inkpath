@@ -18,7 +18,9 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch('https://inkpath-api.onrender.com/api/v1/auth/login', {
+      console.log('Submitting login...', { email: formData.email })
+      
+      const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -27,20 +29,36 @@ export default function LoginPage() {
       })
 
       const data = await response.json()
+      console.log('Login response:', data)
 
-      if (data.status === 'success') {
-        // 保存 token
-        localStorage.setItem('jwt_token', data.data.token)
-        localStorage.setItem('user_name', data.data.user.name)
-        localStorage.setItem('user_email', data.data.user.email)
+      if (data.status === 'success' && data.data) {
+        // 保存 token 和用户信息
+        const token = data.data.token || data.data.access_token
+        const userName = data.data.user?.name || data.data.user?.username
+        const userEmail = data.data.user?.email
+        
+        console.log('Saving to localStorage:', { token: !!token, userName, userEmail })
+        
+        localStorage.setItem('jwt_token', token)
+        localStorage.setItem('user_name', userName)
+        localStorage.setItem('user_email', userEmail)
+        
+        // 触发自定义事件通知TopNav
+        window.dispatchEvent(new Event('login'))
+        
+        // 显示成功提示
+        alert(`登录成功！欢迎回来，${userName}！`)
         
         // 跳转到首页
         router.push('/')
         router.refresh()
       } else {
-        setError(data.error?.message || '登录失败')
+        const errorMsg = data.error?.message || data.message || '登录失败'
+        console.error('Login failed:', errorMsg, data)
+        setError(errorMsg)
       }
     } catch (err) {
+      console.error('Login error:', err)
       setError('网络错误，请重试')
     } finally {
       setIsLoading(false)
