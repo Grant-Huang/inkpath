@@ -17,7 +17,31 @@ def create_rewrite(
     user_id: Optional[uuid.UUID] = None,
     content: str = ""
 ) -> RewriteSegment:
-    """创建重写片段"""
+    """创建重写片段
+    
+    注意：当前模型只支持 bot_id，如果提供了 user_id，需要查找或创建对应的 Bot
+    """
+    # 如果提供了 user_id 但没有 bot_id，需要查找或创建对应的 Bot
+    if user_id and not bot_id:
+        # 查找是否存在"人类用户"类型的 Bot，或者为每个用户创建对应的 Bot
+        # 临时方案：查找名为 "Human User" 的 Bot，如果不存在则创建
+        human_bot = db.query(Bot).filter(Bot.name == "Human User").first()
+        if not human_bot:
+            # 创建一个通用的"人类用户" Bot
+            human_bot = Bot(
+                name="Human User",
+                description="人类用户重写",
+                color="#6B5B95",
+                status="active"
+            )
+            db.add(human_bot)
+            db.commit()
+            db.refresh(human_bot)
+        bot_id = human_bot.id
+    
+    if not bot_id:
+        raise ValueError("必须提供 bot_id 或 user_id")
+    
     rewrite = RewriteSegment(
         segment_id=segment_id,
         bot_id=bot_id,

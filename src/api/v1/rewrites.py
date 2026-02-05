@@ -1,7 +1,6 @@
 """重写 API"""
 import uuid
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database import db_session
 from src.models.rewrite_segment import RewriteSegment
 from src.models.rewrite_vote import RewriteVote
@@ -20,9 +19,8 @@ rewrites_bp = Blueprint('rewrites', __name__, url_prefix='/api/v1')
 
 
 @rewrites_bp.route('/segments/<segment_id>/rewrites', methods=['POST'])
-@jwt_required()
 def create_rewrite_segment(segment_id: str):
-    """创建重写片段"""
+    """创建重写片段（支持用户和Bot认证）"""
     db = db_session()
     try:
         data = request.get_json()
@@ -32,23 +30,53 @@ def create_rewrite_segment(segment_id: str):
             return jsonify({'error': '内容不能为空'}), 400
         
         # 验证片段存在
-        segment = db.get(Segment, uuid.UUID(segment_id))
+        try:
+            segment_uuid = uuid.UUID(segment_id)
+        except ValueError:
+            return jsonify({'error': '无效的片段ID格式'}), 400
+        
+        segment = db.get(Segment, segment_uuid)
         if not segment:
             return jsonify({'error': '片段不存在'}), 404
         
-        # 获取当前用户/Bot
-        identity = get_jwt_identity()
+        # 尝试认证（支持用户JWT和Bot API Key）
+        user = None
+        bot = None
+        auth_header = request.headers.get('Authorization', '')
+        
+        if auth_header.startswith('Bearer '):
+            token = auth_header.replace('Bearer ', '', 1)
+            
+            # 先尝试JWT验证（用户）
+            from flask_jwt_extended import decode_token
+            try:
+                decoded = decode_token(token)
+                user_id_str = decoded.get('sub')
+                if user_id_str:
+                    user_id = uuid.UUID(user_id_str)
+                    user = db.query(User).filter(User.id == user_id).first()
+            except:
+                pass
+            
+            # 如果JWT验证失败，尝试Bot API Key
+            if not user:
+                from src.services.bot_service import authenticate_bot
+                bot = authenticate_bot(db, token)
+        
+        if not user and not bot:
+            return jsonify({'error': '需要认证'}), 401
+        
+        # 确定作者ID
         bot_id = None
         user_id = None
-        
-        if identity.get('type') == 'bot':
-            bot_id = uuid.UUID(identity['id'])
+        if bot:
+            bot_id = bot.id
         else:
-            user_id = uuid.UUID(identity['id'])
+            user_id = user.id
         
         rewrite = create_rewrite(
             db,
-            segment_id=uuid.UUID(segment_id),
+            segment_id=segment_uuid,
             bot_id=bot_id,
             user_id=user_id,
             content=content,
@@ -81,13 +109,18 @@ def get_segment_rewrites(segment_id: str):
     db = db_session()
     try:
         # 验证片段存在
-        segment = db.get(Segment, uuid.UUID(segment_id))
+        try:
+            segment_uuid = uuid.UUID(segment_id)
+        except ValueError:
+            return jsonify({'error': '无效的片段ID格式'}), 400
+        
+        segment = db.get(Segment, segment_uuid)
         if not segment:
             return jsonify({'error': '片段不存在'}), 404
         
         rewrites, total = get_rewrites_by_segment(
             db,
-            segment_id=uuid.UUID(segment_id),
+            segment_id=segment_uuid,
         )
         
         # 获取投票统计
@@ -105,7 +138,7 @@ def get_segment_rewrites(segment_id: str):
             })
         
         # 获取最高评分重写
-        top_rewrite = get_top_rewrite(db, uuid.UUID(segment_id))
+        top_rewrite = get_top_rewrite(db, segment_uuid)
         top_rewrite_data = None
         if top_rewrite:
             vote_summary = get_rewrite_vote_summary(db, top_rewrite.id)
@@ -134,9 +167,8 @@ def get_segment_rewrites(segment_id: str):
 
 
 @rewrites_bp.route('/rewrites/<rewrite_id>/votes', methods=['POST'])
-@jwt_required()
 def vote_rewrite_segment(rewrite_id: str):
-    """为重写投票"""
+    """为重写投票（支持用户和Bot认证）"""
     db = db_session()
     try:
         data = request.get_json()
@@ -145,19 +177,49 @@ def vote_rewrite_segment(rewrite_id: str):
         if vote_value not in [1, -1]:
             return jsonify({'error': '投票值必须是 1 或 -1'}), 400
         
-        # 获取当前用户/Bot
-        identity = get_jwt_identity()
+        # 尝试认证（支持用户JWT和Bot API Key）
+        user = None
+        bot = None
+        auth_header = request.headers.get('Authorization', '')
+        
+        if auth_header.startswith('Bearer '):
+            token = auth_header.replace('Bearer ', '', 1)
+            
+            # 先尝试JWT验证（用户）
+            from flask_jwt_extended import decode_token
+            try:
+                decoded = decode_token(token)
+                user_id_str = decoded.get('sub')
+                if user_id_str:
+                    user_id = uuid.UUID(user_id_str)
+                    user = db.query(User).filter(User.id == user_id).first()
+            except:
+                pass
+            
+            # 如果JWT验证失败，尝试Bot API Key
+            if not user:
+                from src.services.bot_service import authenticate_bot
+                bot = authenticate_bot(db, token)
+        
+        if not user and not bot:
+            return jsonify({'error': '需要认证'}), 401
+        
+        # 确定作者ID
         bot_id = None
         user_id = None
-        
-        if identity.get('type') == 'bot':
-            bot_id = uuid.UUID(identity['id'])
+        if bot:
+            bot_id = bot.id
         else:
-            user_id = uuid.UUID(identity['id'])
+            user_id = user.id
+        
+        try:
+            rewrite_uuid = uuid.UUID(rewrite_id)
+        except ValueError:
+            return jsonify({'error': '无效的重写ID格式'}), 400
         
         vote, message = vote_rewrite(
             db,
-            rewrite_id=uuid.UUID(rewrite_id),
+            rewrite_id=rewrite_uuid,
             bot_id=bot_id,
             user_id=user_id,
             vote_value=vote_value,
@@ -176,7 +238,7 @@ def vote_rewrite_segment(rewrite_id: str):
             'message': message,
             'data': {
                 'vote': vote.to_dict(),
-                'vote_summary': get_rewrite_vote_summary(db, uuid.UUID(rewrite_id)),
+                'vote_summary': get_rewrite_vote_summary(db, rewrite_uuid),
             }
         }), 200
     
@@ -192,7 +254,12 @@ def get_rewrite_summary(rewrite_id: str):
     """获取重写投票统计"""
     db = db_session()
     try:
-        vote_summary = get_rewrite_vote_summary(db, uuid.UUID(rewrite_id))
+        try:
+            rewrite_uuid = uuid.UUID(rewrite_id)
+        except ValueError:
+            return jsonify({'error': '无效的重写ID格式'}), 400
+        
+        vote_summary = get_rewrite_vote_summary(db, rewrite_uuid)
         
         return jsonify({
             'code': 0,

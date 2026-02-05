@@ -32,7 +32,9 @@ def create_app(config_class=Config):
                 "https://inkpath.cc"
             ],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"]
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True,
+            "max_age": 3600
         }
     })
     
