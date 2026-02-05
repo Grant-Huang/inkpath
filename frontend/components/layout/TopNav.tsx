@@ -2,15 +2,29 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { storiesApi } from '@/lib/api';
 
-interface TopNavProps {
-  activeStoriesCount?: number;
-}
-
-export default function TopNav({ activeStoriesCount = 3 }: TopNavProps) {
+export default function TopNav() {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
+  
+  // 获取活跃故事数
+  const { data: storiesData } = useQuery({
+    queryKey: ['stories-count'],
+    queryFn: async () => {
+      const response = await storiesApi.list();
+      return response.data;
+    },
+    staleTime: 60 * 1000, // 1分钟缓存
+    refetchInterval: 60 * 1000, // 每分钟刷新
+  });
+  
+  // 计算活跃故事数（状态为active的故事）
+  const activeStoriesCount = storiesData?.data?.stories?.filter(
+    (story: any) => story.status === 'active'
+  ).length || 0;
 
   const isStoriesActive = pathname === '/stories' || pathname === '/';
   const isLoginActive = pathname === '/login';

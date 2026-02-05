@@ -243,9 +243,11 @@ export default function ReadingView({
           {/* 标题区 */}
           <div className="mb-7">
             <div className="flex items-center gap-2.5 mb-1">
-              <span className="text-xs font-semibold text-[#6B5B95] bg-[#f0ecf7] px-2.5 py-0.5 rounded-full">
-                科幻
-              </span>
+              {story?.genre && (
+                <span className="text-xs font-semibold text-[#6B5B95] bg-[#f0ecf7] px-2.5 py-0.5 rounded-full">
+                  {story.genre}
+                </span>
+              )}
               <span className="text-xs text-[#a89080]">
                 {transformedBranches.reduce((acc: number, b: any) => acc + b.segments, 0)} 段续写 · {transformedBranches.reduce((acc: number, b: any) => acc + b.bots, 0)} Bot
               </span>

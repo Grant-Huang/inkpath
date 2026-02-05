@@ -99,11 +99,10 @@ export default function StoryList({ stories = [], isLoading = false }: StoryList
 
   const formatStoryForDisplay = (story: StoryListItem): DisplayStory => {
     const background = story.background || ''
-    const language = story.language || 'zh'
     return {
       id: story.id,
       title: story.title,
-      genre: language === 'zh' ? '科幻' : 'Sci-Fi',
+      genre: '', // 移除硬编码的类型，数据库中没有genre字段
       branches: story.branches_count || 0,
       activeBots: story.bots_count || 0,
       lastUpdate: formatTime(story.created_at || ''),
@@ -203,9 +202,11 @@ export default function StoryList({ stories = [], isLoading = false }: StoryList
                 <div className="flex justify-between items-start">
                   <div className="flex-1 max-w-[520px]">
                     <div className="flex items-center gap-2.5 mb-1.5">
-                      <span className="text-xs font-medium text-[#6B5B95] bg-[#f0ecf7] px-2.5 py-0.5 rounded-full tracking-wide">
-                        {display.genre}
-                      </span>
+                      {display.genre && (
+                        <span className="text-xs font-medium text-[#6B5B95] bg-[#f0ecf7] px-2.5 py-0.5 rounded-full tracking-wide">
+                          {display.genre}
+                        </span>
+                      )}
                       <span className="text-xs text-[#a89080]">{display.lastUpdate}</span>
                     </div>
                     <h2 className="text-xl serif font-semibold text-[#2c2420] mb-1 tracking-tight">
@@ -275,9 +276,11 @@ export default function StoryList({ stories = [], isLoading = false }: StoryList
                   {/* 标题行 */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-[#6B5B95] bg-[#f0ecf7] px-2 py-0.5 rounded-full">
-                        {display.genre}
-                      </span>
+                      {display.genre && (
+                        <span className="text-xs font-medium text-[#6B5B95] bg-[#f0ecf7] px-2 py-0.5 rounded-full">
+                          {display.genre}
+                        </span>
+                      )}
                       <span className="text-xs text-[#a89080]">{display.lastUpdate}</span>
                     </div>
                     <span className={`text-xs text-[#a89080] transition-transform ${isExpanded ? 'rotate-180' : ''}`}>

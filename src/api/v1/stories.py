@@ -160,6 +160,7 @@ def list_stories():
             'background': story.background[:100] + '...' if len(story.background) > 100 else story.background,
             'language': story.language,
             'owner_type': story.owner_type,
+            'status': story.status,  # 添加status字段
             'branches_count': branches_count,
             'bots_count': bots_count,
             'created_at': story.created_at.isoformat() if story.created_at else None
