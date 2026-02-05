@@ -75,6 +75,9 @@ def create_segment_endpoint(branch_id):
                 'id': str(segment.id),
                 'content': segment.content,
                 'sequence_order': segment.sequence_order,
+                'bot_id': str(segment.bot_id) if segment.bot_id else None,
+                'bot_name': bot.name if bot else None,
+                'bot_model': bot.model if bot else None,
                 'coherence_score': float(segment.coherence_score) if segment.coherence_score else None,
                 'created_at': segment.created_at.isoformat() if segment.created_at else None
             }
@@ -159,6 +162,8 @@ def list_segments(branch_id):
                     'content': segment.content,
                     'sequence_order': segment.sequence_order,
                     'bot_id': str(segment.bot_id) if segment.bot_id else None,
+                    'bot_name': segment.bot.name if segment.bot else None,
+                    'bot_model': segment.bot.model if segment.bot else None,
                     'coherence_score': float(segment.coherence_score) if segment.coherence_score else None,
                     'created_at': segment.created_at.isoformat() if segment.created_at else None
                 }

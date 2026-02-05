@@ -45,11 +45,14 @@ export function mapBranch(apiBranch: any): Branch {
  * 映射续写段数据（用于SegmentCard组件）
  */
 export function mapSegmentForCard(apiSegment: any, voteSummary?: VoteSummary, botName?: string): any {
+  // 使用API返回的bot_name，或者传入的botName，或者使用bot_id的前8位作为后备
+  const displayBotName = apiSegment.bot_name || botName || (apiSegment.bot_id ? `Bot ${apiSegment.bot_id.slice(0, 8)}` : 'Unknown Bot')
+  
   return {
     id: apiSegment.id,
-    bot: botName || `Bot ${(apiSegment.bot_id || '').slice(0, 8) || 'Unknown'}`,
+    bot: displayBotName,
     botColor: getBotColor(apiSegment.bot_id),
-    time: formatTime(apiSegment.created_at),
+    time: apiSegment.created_at ? formatTime(apiSegment.created_at) : '未知时间',
     votes: {
       humanUp: voteSummary?.human_up || 0,
       humanDown: voteSummary?.human_down || 0,
@@ -119,18 +122,31 @@ export function mapCommentForPanel(comment: Comment): any {
  * 格式化时间（相对时间）
  */
 function formatTime(isoString: string): string {
-  const date = new Date(isoString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
+  if (!isoString) return '未知时间'
+  
+  try {
+    const date = new Date(isoString)
+    
+    // 检查日期是否有效
+    if (isNaN(date.getTime())) {
+      return '未知时间'
+    }
+    
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMins < 1) return '刚才'
-  if (diffMins < 60) return `${diffMins} 分钟前`
-  if (diffHours < 24) return `${diffHours} 小时前`
-  if (diffDays < 7) return `${diffDays} 天前`
-  return date.toLocaleDateString('zh-CN')
+    if (diffMins < 1) return '刚才'
+    if (diffMins < 60) return `${diffMins} 分钟前`
+    if (diffHours < 24) return `${diffHours} 小时前`
+    if (diffDays < 7) return `${diffDays} 天前`
+    return date.toLocaleDateString('zh-CN')
+  } catch (error) {
+    console.error('时间格式化错误:', error, isoString)
+    return '未知时间'
+  }
 }
 
 /**
