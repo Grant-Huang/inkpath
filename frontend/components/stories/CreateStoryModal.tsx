@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { storiesApi } from '@/lib/api'
 import { useRouter } from 'next/navigation'
@@ -9,15 +9,94 @@ interface CreateStoryModalProps {
   onClose: () => void
 }
 
+// 故事包文件配置
+interface StoryPackFile {
+  key: string  // 文件key，用于API提交
+  filename: string  // 显示的文件名
+  displayName: string  // 中文显示名称
+  required: boolean  // 是否必填
+  acceptedExt: string[]  // 接受的文件扩展名
+  helpUrl?: string  // 帮助文档链接
+  description: string  // 文件说明
+}
+
+const STORY_PACK_FILES: StoryPackFile[] = [
+  {
+    key: 'meta',
+    filename: '00_meta.md',
+    displayName: '故事元信息',
+    required: true,
+    acceptedExt: ['.md'],
+    helpUrl: 'https://docs.inkpath.cc/templates/00_meta',
+    description: '故事的基本信息（标题、时代、类型等）'
+  },
+  {
+    key: 'evidence_pack',
+    filename: '10_evidence_pack.md',
+    displayName: '证据包',
+    required: true,
+    acceptedExt: ['.md'],
+    helpUrl: 'https://docs.inkpath.cc/templates/10_evidence_pack',
+    description: '提供"第1层残篇"，决定历史感 ⭐ 最重要'
+  },
+  {
+    key: 'stance_pack',
+    filename: '20_stance_pack.md',
+    displayName: '立场包',
+    required: true,
+    acceptedExt: ['.md'],
+    helpUrl: 'https://docs.inkpath.cc/templates/20_stance_pack',
+    description: '提供"第2层立场"，决定冲突 ⭐ 最重要'
+  },
+  {
+    key: 'cast',
+    filename: '30_cast.md',
+    displayName: '角色卡',
+    required: false,
+    acceptedExt: ['.md'],
+    helpUrl: 'https://docs.inkpath.cc/templates/30_cast',
+    description: '提供"第3层个体"，决定拼图'
+  },
+  {
+    key: 'plot_outline',
+    filename: '40_plot_outline.md',
+    displayName: '剧情大纲',
+    required: false,
+    acceptedExt: ['.md'],
+    helpUrl: 'https://docs.inkpath.cc/templates/40_plot_outline',
+    description: '信息流大纲（不是三幕结构）'
+  },
+  {
+    key: 'constraints',
+    filename: '50_constraints.md',
+    displayName: '约束与边界',
+    required: false,
+    acceptedExt: ['.md'],
+    helpUrl: 'https://docs.inkpath.cc/templates/50_constraints',
+    description: '硬约束、软约束、内容边界'
+  },
+  {
+    key: 'sources',
+    filename: '60_sources.md',
+    displayName: '来源清单',
+    required: false,
+    acceptedExt: ['.md'],
+    helpUrl: 'https://docs.inkpath.cc/templates/60_sources',
+    description: '可追溯性'
+  }
+]
+
 interface UploadedFile {
-  name: string
+  key: string
+  filename: string
   content: string
+  valid: boolean
+  errorMessage?: string
 }
 
 export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [formData, setFormData] = useState({
     title: '',
@@ -25,8 +104,8 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
     style_rules: '',
     language: 'zh' as 'zh' | 'en',
   })
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
-  const [isUploading, setIsUploading] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<Map<string, UploadedFile>>(new Map())
+  const [currentUploadKey, setCurrentUploadKey] = useState<string | null>(null)
 
   const createStoryMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -40,33 +119,92 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
     },
   })
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
+  // 验证MD文件格式
+  const validateMarkdownFile = (content: string, fileConfig: StoryPackFile): { valid: boolean; error?: string } => {
+    if (!content || content.trim().length === 0) {
+      return { valid: false, error: '文件内容为空' }
+    }
 
-    setIsUploading(true)
-    const newFiles: UploadedFile[] = []
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      try {
-        const content = await file.text()
-        newFiles.push({ name: file.name, content })
-      } catch (error) {
-        console.error(`Failed to read file ${file.name}:`, error)
+    // 检查是否有Markdown前置元数据（YAML front matter）
+    if (fileConfig.key === 'meta') {
+      if (!content.startsWith('---')) {
+        return { valid: false, error: '缺少YAML前置元数据（应以 --- 开头）' }
+      }
+      const yamlEndIndex = content.indexOf('---', 3)
+      if (yamlEndIndex === -1) {
+        return { valid: false, error: '前置元数据格式不完整（缺少结束的 ---）' }
+      }
+      
+      // 检查必要的元数据字段
+      const yamlContent = content.substring(3, yamlEndIndex)
+      const requiredFields = ['pack_id', 'title', 'logline', 'era']
+      for (const field of requiredFields) {
+        if (!yamlContent.includes(`${field}:`)) {
+          return { valid: false, error: `缺少必要字段: ${field}` }
+        }
       }
     }
 
-    setUploadedFiles(prev => [...prev, ...newFiles])
-    setIsUploading(false)
-    
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+    // 检查是否有Markdown标题（至少有一个 # 开头的行）
+    const lines = content.split('\n')
+    const hasHeading = lines.some(line => line.trim().startsWith('#'))
+    if (!hasHeading) {
+      return { valid: false, error: '文件缺少Markdown标题（建议使用 # ## ### 等）' }
+    }
+
+    // 检查最小长度
+    if (content.length < 50) {
+      return { valid: false, error: '文件内容过短（至少50字符）' }
+    }
+
+    return { valid: true }
+  }
+
+  // 处理文件上传
+  const handleFileUpload = async (fileConfig: StoryPackFile, file: File) => {
+    // 检查文件扩展名
+    const fileExt = '.' + file.name.split('.').pop()?.toLowerCase()
+    if (!fileConfig.acceptedExt.includes(fileExt)) {
+      alert(`❌ 文件格式错误\n\n期望：${fileConfig.acceptedExt.join(' 或 ')}\n实际：${fileExt}`)
+      return
+    }
+
+    try {
+      const content = await file.text()
+      
+      // 验证文件格式
+      const validation = validateMarkdownFile(content, fileConfig)
+      
+      const uploadedFile: UploadedFile = {
+        key: fileConfig.key,
+        filename: file.name,
+        content: content,
+        valid: validation.valid,
+        errorMessage: validation.error
+      }
+
+      setUploadedFiles(prev => {
+        const newMap = new Map(prev)
+        newMap.set(fileConfig.key, uploadedFile)
+        return newMap
+      })
+
+      if (!validation.valid) {
+        alert(`⚠️ 文件验证警告\n\n文件：${file.name}\n问题：${validation.error}\n\n您可以继续上传其他文件，但建议修复此问题后重新上传。`)
+      }
+    } catch (error) {
+      console.error(`Failed to read file ${file.name}:`, error)
+      alert(`❌ 文件读取失败：${error instanceof Error ? error.message : '未知错误'}`)
     }
   }
 
-  const removeFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index))
+  // 移除已上传的文件
+  const removeFile = (key: string) => {
+    setUploadedFiles(prev => {
+      const newMap = new Map(prev)
+      newMap.delete(key)
+      return newMap
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,27 +223,30 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
       return
     }
 
-    const storyPackage: Record<string, any> = {}
-    const requiredFiles = ['metadata.json', 'characters.json', 'outline.json']
-    const uploadedNames = uploadedFiles.map(f => f.name)
-    
-    const missingRequired = requiredFiles.filter(f => !uploadedNames.includes(f))
+    // 检查必填文件
+    const requiredFiles = STORY_PACK_FILES.filter(f => f.required)
+    const missingRequired = requiredFiles.filter(f => !uploadedFiles.has(f.key))
     if (missingRequired.length > 0) {
-      alert(`❌ 缺少必选文件：${missingRequired.join(', ')}`)
+      alert(`❌ 缺少必填文件：\n\n${missingRequired.map(f => `• ${f.displayName} (${f.filename})`).join('\n')}\n\n请上传这些文件后再提交。`)
       return
     }
 
-    for (const file of uploadedFiles) {
-      try {
-        if (file.name.endsWith('.json')) {
-          storyPackage[file.name.replace('.json', '')] = JSON.parse(file.content)
-        } else {
-          storyPackage[file.name.replace('.md', '')] = file.content
-        }
-      } catch (error) {
-        console.error(`Failed to parse file ${file.name}:`, error)
+    // 检查是否有验证失败的文件
+    const invalidFiles = Array.from(uploadedFiles.values()).filter(f => !f.valid)
+    if (invalidFiles.length > 0) {
+      const confirmSubmit = confirm(
+        `⚠️ 有 ${invalidFiles.length} 个文件验证失败：\n\n${invalidFiles.map(f => `• ${f.filename}: ${f.errorMessage}`).join('\n')}\n\n是否仍要继续提交？`
+      )
+      if (!confirmSubmit) {
+        return
       }
     }
+
+    // 构建故事包数据
+    const storyPackage: Record<string, string> = {}
+    uploadedFiles.forEach((file, key) => {
+      storyPackage[key] = file.content
+    })
 
     await createStoryMutation.mutateAsync({
       title: formData.title,
@@ -118,31 +259,26 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
     })
   }
 
-  // 必选文件列表
-  const requiredFiles = ['metadata.json', 'characters.json', 'outline.json']
-  const recommendedFiles = ['first_chapter.md', 'worldbuilding.json', 'rules.json']
-  const uploadedNames = uploadedFiles.map(f => f.name)
-
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg sm:rounded-xl w-full max-w-lg max-h-[95vh] overflow-y-auto"
+        className="bg-white rounded-lg sm:rounded-xl w-full max-w-2xl max-h-[95vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题区域 */}
-        <div className="sticky top-0 bg-white sm:bg-transparent border-b border-[#ede9e3] px-4 py-3 sm:px-6 sm:py-4">
+        <div className="sticky top-0 bg-white border-b border-[#ede9e3] px-4 py-3 sm:px-6 sm:py-4 z-10">
           <h2 className="text-lg sm:text-xl serif font-bold text-[#2c2420]">创建新故事</h2>
-          <p className="hidden sm:block text-xs text-[#a89080] mt-1">创建属于你的协作故事</p>
+          <p className="text-xs text-[#a89080] mt-1">填写基本信息并上传故事包</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5">
           {/* 故事标题 */}
           <div>
             <label className="block text-sm font-medium text-[#5a4f45] mb-1.5">
-              标题 <span className="text-red-500">*</span>
+              故事标题 <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -189,132 +325,20 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
           {/* 背景描述 */}
           <div>
             <label className="block text-sm font-medium text-[#5a4f45] mb-1.5">
-              背景 <span className="text-red-500">*</span>
+              背景描述 <span className="text-red-500">*</span>
             </label>
             <textarea
               value={formData.background}
               onChange={(e) => setFormData({ ...formData, background: e.target.value })}
               className="w-full border border-[#ede9e3] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95]"
               rows={3}
-              placeholder="描述故事的背景设定..."
+              placeholder="简要描述故事的背景设定..."
               required
               disabled={createStoryMutation.isPending}
             />
           </div>
 
-          {/* 故事包上传 - 移动端折叠 */}
-          <details className="group">
-            <summary className="flex items-center justify-between cursor-pointer list-none">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-[#5a4f45]">上传故事包</span>
-                {/* 显示文件状态 */}
-                <div className="flex gap-1">
-                  {requiredFiles.map(file => (
-                    <span 
-                      key={file}
-                      className={`text-xs px-1.5 py-0.5 rounded ${
-                        uploadedNames.includes(file) 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-red-50 text-red-600'
-                      }`}
-                    >
-                      {file}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <span className="text-xs text-[#a89080] group-open:rotate-180 transition-transform">▼</span>
-            </summary>
-            
-            <div className="mt-3 space-y-3">
-              {/* 上传区域 */}
-              <div className="border-2 border-dashed border-[#d9d3ca] rounded-lg p-4">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept=".json,.md"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  disabled={isUploading || createStoryMutation.isPending}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading || createStoryMutation.isPending}
-                  className="w-full bg-[#f5f2ef] border border-[#ede9e3] rounded-lg py-3 text-sm text-[#5a4f45] hover:bg-[#f0ecf7] hover:border-[#6B5B95] transition-colors disabled:opacity-50"
-                >
-                  {isUploading ? '处理中...' : '+ 选择文件'}
-                </button>
-                
-                {/* 已上传文件 */}
-                {uploadedFiles.length > 0 && (
-                  <div className="mt-3 space-y-1">
-                    {uploadedFiles.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between bg-[#f5f2ef] rounded px-2 py-1.5 text-xs">
-                        <span className="text-[#5a4f45] truncate flex-1">{file.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeFile(index)}
-                          className="text-[#b8574e] hover:text-[#a04538] ml-2 px-1"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* 文件说明 - 折叠内 */}
-              <div className="text-xs text-[#a89080] space-y-2">
-                <p className="font-medium text-[#5a4f45]">📁 文件说明</p>
-                
-                <div className="grid sm:grid-cols-2 gap-2">
-                  {/* 必选文件 */}
-                  <div className="bg-red-50 rounded-lg p-2">
-                    <p className="font-medium text-red-700 mb-1">❌ 必选（缺少无法创建）</p>
-                    <ul className="space-y-0.5 text-[10px]">
-                      {requiredFiles.map(file => (
-                        <li key={file} className="flex items-center gap-1">
-                          <span className={uploadedNames.includes(file) ? 'text-green-600' : 'text-red-500'}>
-                            {uploadedNames.includes(file) ? '✓' : '○'}
-                          </span>
-                          {file}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  {/* 推荐文件 */}
-                  <div className="bg-purple-50 rounded-lg p-2">
-                    <p className="font-medium text-purple-700 mb-1">✅ 推荐</p>
-                    <ul className="space-y-0.5 text-[10px]">
-                      {recommendedFiles.map(file => (
-                        <li key={file} className="flex items-center gap-1">
-                          <span className={uploadedNames.includes(file) ? 'text-green-600' : 'text-purple-500'}>
-                            {uploadedNames.includes(file) ? '✓' : '○'}
-                          </span>
-                          {file}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-                
-                {/* 帮助链接 */}
-                <a
-                  href="/docs/10_故事发起者帮助文档_人类版.md"
-                  target="_blank"
-                  className="inline-flex items-center gap-1 text-[#6B5B95] hover:text-[#5a4a85] underline"
-                >
-                  📖 查看帮助文档
-                </a>
-              </div>
-            </div>
-          </details>
-
-          {/* 写作风格 - 可选折叠 */}
+          {/* 写作风格 - 可选 */}
           <details className="group">
             <summary className="flex items-center justify-between cursor-pointer list-none py-2">
               <span className="text-sm font-medium text-[#5a4f45]">写作风格（可选）</span>
@@ -323,12 +347,162 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
             <textarea
               value={formData.style_rules}
               onChange={(e) => setFormData({ ...formData, style_rules: e.target.value })}
-              className="w-full border border-[#ede9e3] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95]"
+              className="w-full border border-[#ede9e3] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95] mt-2"
               rows={2}
               placeholder="例如：第三人称视角，注重心理描写..."
               disabled={createStoryMutation.isPending}
             />
           </details>
+
+          {/* 故事包上传区域 */}
+          <div className="border-t border-[#ede9e3] pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-[#5a4f45]">故事包文件</h3>
+              <a
+                href="https://docs.inkpath.cc/guide/story-creator"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-[#6B5B95] hover:text-[#5a4a85] underline flex items-center gap-1"
+              >
+                📖 查看完整帮助文档
+              </a>
+            </div>
+
+            <div className="space-y-2">
+              {STORY_PACK_FILES.map((fileConfig) => {
+                const uploaded = uploadedFiles.get(fileConfig.key)
+                const isUploaded = !!uploaded
+                
+                return (
+                  <div
+                    key={fileConfig.key}
+                    className={`border rounded-lg p-3 ${
+                      isUploaded
+                        ? uploaded.valid
+                          ? 'border-green-300 bg-green-50'
+                          : 'border-yellow-300 bg-yellow-50'
+                        : fileConfig.required
+                        ? 'border-red-200 bg-red-50'
+                        : 'border-[#ede9e3] bg-white'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-xs font-medium ${
+                            fileConfig.required ? 'text-red-600' : 'text-purple-600'
+                          }`}>
+                            {fileConfig.required ? '必填' : '推荐'}
+                          </span>
+                          <span className="text-sm font-medium text-[#2c2420]">
+                            {fileConfig.displayName}
+                          </span>
+                          {isUploaded && (
+                            <span className="text-xs">
+                              {uploaded.valid ? '✓' : '⚠️'}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#7a6f65] mb-1">{fileConfig.description}</p>
+                        <p className="text-xs text-[#a89080]">
+                          文件名：<code className="bg-white px-1 py-0.5 rounded">{fileConfig.filename}</code>
+                        </p>
+                        
+                        {isUploaded && (
+                          <div className="mt-2 text-xs">
+                            {uploaded.valid ? (
+                              <span className="text-green-700">✓ 已上传并通过验证</span>
+                            ) : (
+                              <span className="text-yellow-700">⚠️ {uploaded.errorMessage}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        {!isUploaded ? (
+                          <label
+                            className="px-3 py-1.5 bg-[#6B5B95] text-white text-xs rounded cursor-pointer hover:bg-[#5a4a85] transition-colors text-center whitespace-nowrap"
+                          >
+                            上传
+                            <input
+                              type="file"
+                              accept={fileConfig.acceptedExt.join(',')}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) {
+                                  handleFileUpload(fileConfig, file)
+                                }
+                                e.target.value = '' // 重置input
+                              }}
+                              className="hidden"
+                              disabled={createStoryMutation.isPending}
+                            />
+                          </label>
+                        ) : (
+                          <>
+                            <label
+                              className="px-3 py-1.5 bg-[#f5f2ef] border border-[#ede9e3] text-[#5a4f45] text-xs rounded cursor-pointer hover:bg-[#ede9e3] transition-colors text-center whitespace-nowrap"
+                            >
+                              重新上传
+                              <input
+                                type="file"
+                                accept={fileConfig.acceptedExt.join(',')}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  if (file) {
+                                    handleFileUpload(fileConfig, file)
+                                  }
+                                  e.target.value = ''
+                                }}
+                                className="hidden"
+                                disabled={createStoryMutation.isPending}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(fileConfig.key)}
+                              className="px-3 py-1.5 text-xs text-[#b8574e] hover:text-[#a04538] border border-[#ede9e3] rounded hover:bg-red-50 transition-colors"
+                              disabled={createStoryMutation.isPending}
+                            >
+                              删除
+                            </button>
+                          </>
+                        )}
+                        
+                        {fileConfig.helpUrl && (
+                          <a
+                            href={fileConfig.helpUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 text-xs text-[#6B5B95] hover:text-[#5a4a85] underline text-center"
+                          >
+                            查看模板
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* 上传进度提示 */}
+            <div className="mt-3 p-3 bg-[#f5f2ef] rounded-lg">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[#5a4f45]">
+                  已上传：{uploadedFiles.size} / {STORY_PACK_FILES.filter(f => f.required).length} 必填 + {STORY_PACK_FILES.filter(f => !f.required).length} 推荐
+                </span>
+                <span className={`font-medium ${
+                  uploadedFiles.size >= STORY_PACK_FILES.filter(f => f.required).length
+                    ? 'text-green-600'
+                    : 'text-red-600'
+                }`}>
+                  {uploadedFiles.size >= STORY_PACK_FILES.filter(f => f.required).length ? '✓ 可以提交' : '✗ 缺少必填文件'}
+                </span>
+              </div>
+            </div>
+          </div>
 
           {/* 按钮 */}
           <div className="flex gap-2 pt-2">
@@ -342,7 +516,7 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
             </button>
             <button
               type="submit"
-              disabled={createStoryMutation.isPending}
+              disabled={createStoryMutation.isPending || uploadedFiles.size < STORY_PACK_FILES.filter(f => f.required).length}
               className="flex-1 bg-[#6B5B95] text-white rounded-lg py-2.5 text-sm font-medium hover:bg-[#5a4a85] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {createStoryMutation.isPending ? '创建中...' : '创建故事'}
