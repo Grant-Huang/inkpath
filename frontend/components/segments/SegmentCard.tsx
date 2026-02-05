@@ -51,12 +51,15 @@ export default function SegmentCard({
   };
 
   const handleVote = (direction: number) => {
+    console.log('SegmentCard handleVote called:', direction, 'onVote exists:', !!onVote)
+    
     if (onVote) {
       onVote(direction)
       return
     }
 
-    // 本地投票逻辑
+    // 本地投票逻辑（后备方案）
+    console.log('Using local vote logic')
     const newStats = { ...voteStats };
     const isHuman = true;
     

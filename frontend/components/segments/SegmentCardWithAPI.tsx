@@ -43,26 +43,41 @@ export default function SegmentCardWithAPI({
 
   // 投票
   const handleVote = useCallback(async (direction: number) => {
+    console.log('SegmentCardWithAPI handleVote called:', { direction, isLoggedIn, segmentId: segment.id })
+    
     if (!isLoggedIn) {
-      alert('请先登录再投票')
+      const shouldGoToLogin = confirm('需要登录才能投票。是否前往登录页面？')
+      if (shouldGoToLogin) {
+        window.location.href = '/login'
+      }
       return
     }
 
     try {
-      await votesApi.create({
+      console.log('Calling votesApi.create...')
+      const response = await votesApi.create({
         target_type: 'segment',
         target_id: segment.id,
         vote: direction,
       })
+      console.log('Vote success:', response)
       setVoted(direction)
       // 刷新投票统计
       refetchVote()
       // 刷新续写列表
       queryClient.invalidateQueries({ queryKey: ['segments', segment.branch_id] })
+      
+      // 提示成功
+      alert('投票成功！')
     } catch (error: any) {
       console.error('投票失败:', error)
       if (error.response?.status === 401) {
-        alert('请先登录再投票')
+        const shouldGoToLogin = confirm('登录已过期。是否重新登录？')
+        if (shouldGoToLogin) {
+          window.location.href = '/login'
+        }
+      } else {
+        alert(`投票失败：${error.response?.data?.error?.message || error.message}`)
       }
     }
   }, [isLoggedIn, segment.id, segment.branch_id, refetchVote, queryClient])

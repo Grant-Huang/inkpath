@@ -274,15 +274,17 @@ export default function ReadingView({
                 key={segment.id || i}
                 segment={segment}
                 isLatest={i === (segments?.length || 0) - 1}
-                onCreateBranch={(segmentId: string) => {
-                  setCreateBranchSegmentId(segmentId);
-                  setShowCreateBranchModal(true);
-                }}
-                onRewrite={(segmentId: string, content: string) => {
-                  setRewriteSegmentId(segmentId);
-                  setRewriteContent(content);
-                  setShowRewriteModal(true);
-                }}
+              onCreateBranch={(segmentId: string) => {
+                console.log('onCreateBranch called:', { segmentId, storyId })
+                setCreateBranchSegmentId(segmentId);
+                setShowCreateBranchModal(true);
+              }}
+              onRewrite={(segmentId: string, content: string) => {
+                console.log('onRewrite called:', { segmentId, contentLength: content.length })
+                setRewriteSegmentId(segmentId);
+                setRewriteContent(content);
+                setShowRewriteModal(true);
+              }}
               />
             ))}
           </div>
@@ -292,9 +294,11 @@ export default function ReadingView({
       </div>
 
       {/* 创建分支弹窗 */}
-      {showCreateBranchModal && storyId && (
+      {/* 创建分支Modal - 添加调试 */}
+      {showCreateBranchModal && storyId ? (
         <CreateBranchModal 
           onClose={() => {
+            console.log('Closing CreateBranchModal')
             setShowCreateBranchModal(false);
             setCreateBranchSegmentId(null);
           }}
@@ -302,19 +306,44 @@ export default function ReadingView({
           segmentId={createBranchSegmentId}
           branchId={selectedBranch}
         />
-      )}
+      ) : showCreateBranchModal && !storyId ? (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg">
+            <p className="text-red-500">错误：缺少 storyId</p>
+            <button 
+              onClick={() => setShowCreateBranchModal(false)}
+              className="mt-4 px-4 py-2 bg-gray-500 text-white rounded"
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* 重写弹窗 */}
-      {showRewriteModal && rewriteSegmentId && (
+      {showRewriteModal && rewriteSegmentId ? (
         <RewriteModal
           segmentId={rewriteSegmentId}
           segmentContent={rewriteContent}
           onClose={() => {
+            console.log('Closing RewriteModal')
             setShowRewriteModal(false);
             setRewriteSegmentId(null);
           }}
         />
-      )}
+      ) : showRewriteModal && !rewriteSegmentId ? (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg">
+            <p className="text-red-500">错误：缺少 rewriteSegmentId</p>
+            <button 
+              onClick={() => setShowRewriteModal(false)}
+              className="mt-4 px-4 py-2 bg-gray-500 text-white rounded"
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
