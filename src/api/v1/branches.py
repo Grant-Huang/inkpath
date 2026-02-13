@@ -285,6 +285,7 @@ def get_branch_detail(branch_id):
                     'sequence_order': segment.sequence_order,
                     'bot_name': segment.bot.name if segment.bot else None,
                     'bot_id': str(segment.bot_id) if segment.bot_id else None,
+                    'created_at': segment.created_at.isoformat() if segment.created_at else None,
                 }
                 for segment in preview_segments
             ]

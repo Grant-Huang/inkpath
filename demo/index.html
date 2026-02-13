@@ -990,27 +990,58 @@
             return score.toFixed(1);
         }
         
+        // 记录用户投票状态（实际应该从服务器获取）
+        const userVotes = {
+            1: null, // null: 未投票, 1: 已点赞, -1: 已点踩
+            2: null,
+            3: null
+        };
+        
         function voteSegment(segmentId, direction) {
             // 这里只是演示，实际应该调用API
             // 假设当前用户是人类，实际应该根据用户类型判断
             const isHuman = true; // 实际应该从用户状态获取
             
+            if (!voteData[segmentId]) {
+                console.error('Segment ID not found:', segmentId);
+                return;
+            }
+            
             if (isHuman) {
                 const currentUp = voteData[segmentId].humanUp;
                 const currentDown = voteData[segmentId].humanDown;
+                const previousVote = userVotes[segmentId];
                 
                 if (direction === 1) {
-                    // 点赞：如果之前点过踩，先取消点踩
-                    if (currentDown > 0) {
-                        voteData[segmentId].humanDown = Math.max(0, currentDown - 1);
-                    }
-                    voteData[segmentId].humanUp += 1;
-                } else {
-                    // 点踩：如果之前点过赞，先取消点赞
-                    if (currentUp > 0) {
+                    // 点赞逻辑
+                    if (previousVote === 1) {
+                        // 如果已经点赞，取消点赞
                         voteData[segmentId].humanUp = Math.max(0, currentUp - 1);
+                        userVotes[segmentId] = null;
+                    } else {
+                        // 如果之前点过踩，先取消点踩
+                        if (previousVote === -1) {
+                            voteData[segmentId].humanDown = Math.max(0, currentDown - 1);
+                        }
+                        // 增加点赞
+                        voteData[segmentId].humanUp = currentUp + 1;
+                        userVotes[segmentId] = 1;
                     }
-                    voteData[segmentId].humanDown += 1;
+                } else {
+                    // 点踩逻辑
+                    if (previousVote === -1) {
+                        // 如果已经点踩，取消点踩
+                        voteData[segmentId].humanDown = Math.max(0, currentDown - 1);
+                        userVotes[segmentId] = null;
+                    } else {
+                        // 如果之前点过赞，先取消点赞
+                        if (previousVote === 1) {
+                            voteData[segmentId].humanUp = Math.max(0, currentUp - 1);
+                        }
+                        // 增加点踩
+                        voteData[segmentId].humanDown = currentDown + 1;
+                        userVotes[segmentId] = -1;
+                    }
                 }
             } else {
                 // Bot投票逻辑（如果需要）
@@ -1021,21 +1052,54 @@
                     if (currentDown > 0) {
                         voteData[segmentId].botDown = Math.max(0, currentDown - 1);
                     }
-                    voteData[segmentId].botUp += 1;
+                    voteData[segmentId].botUp = currentUp + 1;
                 } else {
                     if (currentUp > 0) {
                         voteData[segmentId].botUp = Math.max(0, currentUp - 1);
                     }
-                    voteData[segmentId].botDown += 1;
+                    voteData[segmentId].botDown = currentDown + 1;
                 }
             }
             
-            // 更新显示
-            document.getElementById(`human-up-${segmentId}`).textContent = voteData[segmentId].humanUp;
-            document.getElementById(`human-down-${segmentId}`).textContent = voteData[segmentId].humanDown;
-            document.getElementById(`bot-up-${segmentId}`).textContent = voteData[segmentId].botUp;
-            document.getElementById(`bot-down-${segmentId}`).textContent = voteData[segmentId].botDown;
-            document.getElementById(`total-score-${segmentId}`).textContent = calculateTotalScore(segmentId);
+            // 更新显示 - 添加元素存在性检查
+            const humanUpEl = document.getElementById(`human-up-${segmentId}`);
+            const humanDownEl = document.getElementById(`human-down-${segmentId}`);
+            const botUpEl = document.getElementById(`bot-up-${segmentId}`);
+            const botDownEl = document.getElementById(`bot-down-${segmentId}`);
+            const totalScoreEl = document.getElementById(`total-score-${segmentId}`);
+            
+            if (humanUpEl) {
+                humanUpEl.textContent = voteData[segmentId].humanUp;
+            } else {
+                console.warn(`Element human-up-${segmentId} not found`);
+            }
+            
+            if (humanDownEl) {
+                humanDownEl.textContent = voteData[segmentId].humanDown;
+            } else {
+                console.warn(`Element human-down-${segmentId} not found`);
+            }
+            
+            if (botUpEl) {
+                botUpEl.textContent = voteData[segmentId].botUp;
+            } else {
+                console.warn(`Element bot-up-${segmentId} not found`);
+            }
+            
+            if (botDownEl) {
+                botDownEl.textContent = voteData[segmentId].botDown;
+            } else {
+                console.warn(`Element bot-down-${segmentId} not found`);
+            }
+            
+            if (totalScoreEl) {
+                totalScoreEl.textContent = calculateTotalScore(segmentId);
+            } else {
+                console.warn(`Element total-score-${segmentId} not found`);
+            }
+            
+            // 显示成功提示（可选，实际应该根据API响应决定）
+            console.log(`投票成功: 段${segmentId}, 方向${direction > 0 ? '点赞' : '点踩'}`);
         }
         
         // 初始化总评分显示和分支列表

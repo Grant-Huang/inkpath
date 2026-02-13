@@ -1,0 +1,234 @@
+# InkPath Configuration File
+# All configuration settings for the InkPath application
+
+# Database Configuration
+database:
+  url: "postgresql://inkpath:inkpath_dev@localhost:5432/inkpath"
+  pool_size: 5
+  max_overflow: 10
+  pool_timeout: 30
+  pool_recycle: 1800
+
+# Redis Configuration
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  socket_timeout: 5
+  connection_pool_size: 10
+
+# Application Configuration
+app:
+  host: "0.0.0.0"
+  port: 5000
+  debug: true
+  secret_key: "dev-secret-key-change-in-production"
+
+# JWT Authentication
+jwt:
+  secret_key: "dev-secret-key-change-in-production"
+  access_token_expires: 86400  # 24 hours
+
+# API Keys - LLM Providers
+llm:
+  # MiniMax API (LLM摘要生成)
+  minimax:
+    api_key: ""
+    base_url: "https://api.minimax.chat/v1"
+    model: "abab6.5s-chat"
+    timeout: 30  # seconds
+    max_retries: 3
+
+  # Google Gemini API (LLM摘要生成)
+  gemini:
+    api_key: ""
+    base_url: "https://generativelanguage.googleapis.com/v1"
+    model: "gemini-2.5-flash-lite"
+    timeout: 30  # seconds
+    max_retries: 3
+
+  # Default LLM Provider: 'minimax' or 'gemini'
+  provider: "gemini"
+
+# Feature Flags
+features:
+  enable_coherence_check: false  # 禁用，避免超时
+  coherence_threshold: 4
+  enable_summary_auto: false  # 禁用自动摘要，避免超时
+  enable_rate_limit: true
+
+# Rate Limiting
+rate_limit:
+  default: "100/hour"
+  api: "1000/hour"
+  story_create: "10/day"
+  segment_create: "20/hour/branch"
+
+# Timeout Settings
+timeouts:
+  # API request timeouts
+  api_request: 30  # seconds
+  health_check: 10  # seconds
+  
+  # LLM API timeouts
+  llm_timeout: 60  # seconds
+  llm_retry_attempts: 3
+  llm_retry_delay: 2  # seconds between retries
+  
+  # Database timeouts
+  db_query: 30  # seconds
+  db_transaction: 60  # seconds
+  
+  # Background task timeouts
+  cron_timeout: 300  # 5 minutes
+  cleanup_timeout: 600  # 10 minutes
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  
+  # Better Uptime Integration
+  better_uptime:
+    enabled: true
+    heartbeat_url: ""  # Better Uptime heartbeat URL
+    api_key: ""  # Better Uptime API key for webhook integration
+  
+  # Custom Metrics
+  metrics:
+    enabled: true
+    endpoint: "/api/v1/metrics"
+  
+  # Logging Configuration
+  logging:
+    level: "INFO"
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    file: "logs/inkpath.log"
+    max_size: "10MB"
+    backup_count: 5
+    
+  # Health Check Endpoints
+  health_endpoints:
+    - path: "/api/v1/health"
+      method: "GET"
+      expected_status: 200
+      expected_response:
+        status: "healthy"
+    
+    - path: "/api/v1/"
+      method: "GET"
+      expected_status: 200
+    
+    - path: "/.well-known/"
+      method: "GET"
+      expected_status: 200
+
+# Story Configuration
+story:
+  # Summary generation settings
+  summary:
+    trigger_count: 5  # 每N个续写后生成摘要
+    max_segments: 20  # 生成摘要时最多包含的段数
+    min_length: 150  # 续写最小长度
+    max_length: 2000  # 续写最大长度
+    recommended_length: 500  # 推荐续写长度
+  
+  # Branch settings
+  branch:
+    max_branches: 100  # 每个故事最大分支数
+    inactivity_hours: 24  # 分支不活跃判定时间
+
+# Agent Configuration
+agent:
+  # Story continuation settings
+  continuation:
+    enabled: true
+    min_score_threshold: 6  # 最低质量分数
+    max_segments_per_run: 5  # 每次运行最多续写数量
+    cooldown_hours: 1  # 同一分支续写冷却时间
+  
+  # Bot behavior
+  bot:
+    timeout_hours: 1  # Bot超时时间
+    reputation_penalty: 5  # 超时扣分
+    min_reputation: 0  # 最低声誉分
+
+# Cron Job Configuration
+cron:
+  enabled: false  # Set to true for local scheduler
+  secret: "dev-cron-secret-change-in-production"
+  base_url: "http://localhost:5000"
+  
+  # Job intervals
+  jobs:
+    bot_timeout_check:
+      interval: "*/5 * * * *"  # Every 5 minutes
+      timeout: 60
+    
+    activity_score_update:
+      interval: "0 * * * *"  # Every hour
+      timeout: 300
+    
+    cleanup:
+      interval: "0 2 * * *"  # 2 AM daily
+      timeout: 600
+    
+    story_continuation:
+      interval: "*/15 * * * *"  # Every 15 minutes
+      timeout: 300
+
+# Logging for Agent Runs
+agent_runs:
+  log_file: "logs/agent_runs.log"
+  enabled: true
+  max_log_files: 10
+  max_log_size: "5MB"
+
+# Background Service Configuration
+background_service:
+  enabled: true
+  script_path: "scripts/run_agent.sh"
+  log_path: "logs/background_service.log"
+  pid_file: ".pids/background_service.pid"
+  restart_on_crash: true
+  max_restarts: 3
+  restart_delay: 5  # seconds
+
+# External Services
+external_services:
+  render:
+    base_url: "https://inkpath-api.onrender.com"
+    api_base: "https://inkpath-api.onrender.com/api/v1"
+  
+  web:
+    base_url: "https://inkpath.cc"
+    frontend_url: "https://inkpath.vercel.app"
+
+# CORS Configuration
+cors:
+  allowed_origins:
+    - "http://localhost:3000"
+    - "https://inkpath.vercel.app"
+    - "https://inkpath-git-main-grant-huangs-projects.vercel.app"
+    - "https://www.inkpath.cc"
+    - "https://inkpath.cc"
+  
+  methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "OPTIONS"
+  
+  allow_headers:
+    - "Content-Type"
+    - "Authorization"
+  
+  supports_credentials: true
+  max_age: 3600
+
+# Error Handling
+error_handling:
+  detailed_errors: true
+  log_errors: true
+  notify_on_critical: true
+  max_error_history: 100
