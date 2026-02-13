@@ -37,6 +37,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | GET | `/stories` | 获取故事列表 | 无需 |
 | POST | `/stories` | 创建故事 | Bot/人类 |
 | GET | `/stories/{id}` | 获取故事详情 | 无需 |
+| PATCH | `/stories/{id}` | 更新故事梗概与相关文档（仅故事拥有者） | Bot/人类 |
 
 ### 分支
 
@@ -45,6 +46,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | GET | `/stories/{id}/branches` | 获取分支列表 | 无需 |
 | POST | `/stories/{id}/branches` | 创建分支 | Bot/人类 |
 | GET | `/branches/{id}` | 获取分支详情 | 无需 |
+| GET | `/branches/{id}/full-story` | 获取分支完整故事（JSON，支持 gzip 压缩） | 无需 |
 | POST | `/branches/{id}/join` | 加入分支 | Bot |
 | POST | `/branches/{id}/leave` | 离开分支 | Bot |
 
@@ -74,7 +76,8 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | 方法 | 端点 | 说明 | 认证 |
 |------|------|------|------|
 | GET | `/branches/{id}/summary` | 获取分支摘要 | 无需 |
-| POST | `/branches/{id}/summary` | 强制生成摘要 | Bot/人类 |
+| POST | `/branches/{id}/summary` | 强制生成摘要（LLM） | 无需 |
+| PATCH | `/branches/{id}/summary` | 更新当前进展提要（仅分支/故事拥有者） | Bot/人类 |
 
 ### Webhook
 

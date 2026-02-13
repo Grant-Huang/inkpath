@@ -406,3 +406,23 @@ def get_next_bot_in_queue(db: Session, branch_id: uuid.UUID) -> Optional[Bot]:
     next_member = members[next_index]
     
     return db.query(Bot).filter(Bot.id == next_member.bot_id).first()
+
+
+def update_branch_summary(
+    db: Session,
+    branch_id: uuid.UUID,
+    current_summary: str
+) -> Optional[Branch]:
+    """更新分支当前进展提要"""
+    branch = get_branch_by_id(db, branch_id)
+    if not branch:
+        return None
+    from datetime import datetime
+    branch.current_summary = current_summary
+    branch.summary_updated_at = datetime.utcnow()
+    all_count = db.query(Segment).filter(Segment.branch_id == branch_id).count()
+    branch.summary_covers_up_to = all_count
+    db.commit()
+    db.refresh(branch)
+    cache_service.invalidate_story(branch.story_id)
+    return branch

@@ -1,5 +1,7 @@
 """分支管理API"""
-from flask import Blueprint, request, jsonify, g, current_app
+import gzip
+import json
+from flask import Blueprint, request, jsonify, g, current_app, Response
 from sqlalchemy.orm import Session
 import uuid
 from src.database import get_db
@@ -7,6 +9,7 @@ from src.services.branch_service import (
     create_branch, get_branch_by_id, get_branches_by_story,
     get_branch_tree, join_branch, leave_branch, get_next_bot_in_queue
 )
+from src.services.segment_service import get_segments_by_branch
 from src.models.segment import Segment
 from src.models.bot_branch_membership import BotBranchMembership
 from src.utils.rate_limit import create_branch_rate_limit, create_join_branch_rate_limit
@@ -291,6 +294,102 @@ def get_branch_detail(branch_id):
             ]
         }
     }), 200
+
+
+@branches_bp.route('/branches/<branch_id>/full-story', methods=['GET'])
+def get_branch_full_story(branch_id):
+    """
+    获取分支完整故事文本（公开接口）
+    按续写顺序返回故事片段集合，支持 gzip 压缩以减少网络传输。
+    请求头带 Accept-Encoding: gzip 时返回压缩内容。
+    """
+    try:
+        branch_uuid = uuid.UUID(branch_id)
+    except ValueError:
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'VALIDATION_ERROR',
+                'message': '无效的分支ID格式'
+            }
+        }), 400
+
+    db: Session = get_db_session()
+    branch = get_branch_by_id(db, branch_uuid)
+    if not branch:
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'NOT_FOUND',
+                'message': '分支不存在'
+            }
+        }), 404
+
+    story = branch.story
+    if not story:
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'NOT_FOUND',
+                'message': '故事不存在'
+            }
+        }), 404
+
+    segments, total = get_segments_by_branch(
+        db=db, branch_id=branch_uuid, limit=5000, offset=0
+    )
+    segments_data = [
+        {
+            'sequence_order': seg.sequence_order,
+            'id': str(seg.id),
+            'content': seg.content,
+            'bot_id': str(seg.bot_id) if seg.bot_id else None,
+            'bot_name': seg.bot.name if seg.bot else None,
+            'created_at': seg.created_at.isoformat() if seg.created_at else None,
+        }
+        for seg in segments
+    ]
+
+    payload = {
+        'status': 'success',
+        'data': {
+            'story': {
+                'id': str(story.id),
+                'title': story.title,
+                'background': story.background,
+                'style_rules': story.style_rules,
+                'language': story.language,
+            },
+            'branch': {
+                'id': str(branch.id),
+                'title': branch.title,
+                'description': branch.description,
+                'current_summary': branch.current_summary,
+            },
+            'segments': segments_data,
+            'segments_count': total,
+        }
+    }
+
+    body = json.dumps(payload, ensure_ascii=False)
+    use_gzip = 'gzip' in request.headers.get('Accept-Encoding', '')
+
+    if use_gzip:
+        compressed = gzip.compress(body.encode('utf-8'))
+        return Response(
+            compressed,
+            status=200,
+            mimetype='application/json',
+            headers={
+                'Content-Encoding': 'gzip',
+                'Content-Length': str(len(compressed)),
+            }
+        )
+    return Response(
+        body,
+        status=200,
+        mimetype='application/json',
+    )
 
 
 @branches_bp.route('/branches/<branch_id>/participants', methods=['GET'])

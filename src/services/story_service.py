@@ -166,3 +166,33 @@ def update_story_style_rules(
     db.refresh(story)
     
     return story
+
+
+def update_story_metadata(
+    db: Session,
+    story_id: uuid.UUID,
+    background: Optional[str] = None,
+    style_rules: Optional[str] = None,
+    story_pack_json: Optional[Dict[str, Any]] = None,
+    title: Optional[str] = None
+) -> Optional[Story]:
+    """
+    更新故事梗概及相关文档（仅故事拥有者可调用）
+    可部分更新：只传需要更新的字段。
+    """
+    story = get_story_by_id(db, story_id)
+    if not story:
+        return None
+    if background is not None:
+        story.background = background
+    if style_rules is not None:
+        story.style_rules = style_rules
+    if story_pack_json is not None:
+        story.story_pack_json = story_pack_json
+    if title is not None:
+        story.title = title
+    db.commit()
+    db.refresh(story)
+    cache_service.delete_pattern("story:*")
+    cache_service.delete_pattern("stories:list:*")
+    return story

@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 import uuid
 from src.database import get_db
 from src.services.story_service import (
-    create_story, get_story_by_id, get_stories, update_story_style_rules
+    create_story, get_story_by_id, get_stories,
+    update_story_style_rules, update_story_metadata
 )
 from src.utils.auth import bot_auth_required, user_auth_required
 from src.models.branch import Branch
@@ -283,5 +284,114 @@ def update_story_style_rules_endpoint(story_id):
             'id': str(story.id),
             'style_rules': story.style_rules,
             'updated_at': story.updated_at.isoformat() if story.updated_at else None
+        }
+    }), 200
+
+
+def _is_story_owner(story, bot_id=None, user_id=None):
+    """判断当前认证者是否为故事拥有者"""
+    if story.owner_id is None:
+        return False
+    if story.owner_type == 'bot' and bot_id and story.owner_id == bot_id:
+        return True
+    if story.owner_type == 'human' and user_id and story.owner_id == user_id:
+        return True
+    return False
+
+
+@stories_bp.route('/stories/<story_id>', methods=['PATCH'])
+def update_story_metadata_endpoint(story_id):
+    """
+    更新故事梗概及相关文档（仅故事拥有者）
+    支持更新：title, background, style_rules, story_pack。
+    需要 Bearer Token（Bot API Key 或用户 JWT）。
+    """
+    from src.api.v1.branches import get_auth_user_or_bot
+    bot, user = get_auth_user_or_bot()
+    if not bot and not user:
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'UNAUTHORIZED',
+                'message': '需要认证'
+            }
+        }), 401
+
+    try:
+        story_uuid = uuid.UUID(story_id)
+    except ValueError:
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'VALIDATION_ERROR',
+                'message': '无效的故事ID格式'
+            }
+        }), 400
+
+    db: Session = get_db_session()
+    story = get_story_by_id(db, story_uuid)
+    if not story:
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'NOT_FOUND',
+                'message': '故事不存在'
+            }
+        }), 404
+
+    if not _is_story_owner(story, bot_id=bot.id if bot else None,
+                           user_id=user.id if user else None):
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'FORBIDDEN',
+                'message': '仅故事拥有者可更新故事梗概与相关文档'
+            }
+        }), 403
+
+    data = request.get_json() or {}
+    background = data.get('background')
+    style_rules = data.get('style_rules')
+    story_pack = data.get('story_pack')
+    title = data.get('title')
+
+    if background is None and style_rules is None and story_pack is None and title is None:
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'VALIDATION_ERROR',
+                'message': '请提供至少一个字段: title, background, style_rules, story_pack'
+            }
+        }), 400
+
+    story_pack_json = None
+    if story_pack is not None:
+        story_pack_json = {
+            'meta': story_pack.get('meta'),
+            'evidence_pack': story_pack.get('evidence_pack'),
+            'stance_pack': story_pack.get('stance_pack'),
+            'cast': story_pack.get('cast'),
+            'plot_outline': story_pack.get('plot_outline'),
+            'constraints': story_pack.get('constraints'),
+            'sources': story_pack.get('sources'),
+        }
+
+    story = update_story_metadata(
+        db=db,
+        story_id=story_uuid,
+        background=background,
+        style_rules=style_rules,
+        story_pack_json=story_pack_json,
+        title=title,
+    )
+    return jsonify({
+        'status': 'success',
+        'data': {
+            'id': str(story.id),
+            'title': story.title,
+            'background': story.background,
+            'style_rules': story.style_rules,
+            'story_pack': story.story_pack_json,
+            'updated_at': story.updated_at.isoformat() if story.updated_at else None,
         }
     }), 200
