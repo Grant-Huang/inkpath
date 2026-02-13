@@ -108,13 +108,21 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
   const [currentUploadKey, setCurrentUploadKey] = useState<string | null>(null)
 
   const createStoryMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await storiesApi.create(data)
-      return response.data
+    mutationFn: async (payload: any) => {
+      const response = await storiesApi.create(payload)
+      const body = response.data as { status?: string; data?: { id: string } }
+      if (response.status >= 400 || body?.status === 'error') {
+        const msg = (body as any)?.error?.message || `请求失败 (${response.status})`
+        throw new Error(msg)
+      }
+      return body
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['stories'] })
-      router.push(`/stories/${data.data.id}`)
+      const id = data?.data?.id
+      if (id) {
+        router.push(`/stories/${id}`)
+      }
       onClose()
     },
   })
@@ -255,7 +263,7 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
       language: formData.language,
       min_length: 150,
       max_length: 500,
-      ...(Object.keys(storyPackage).length > 0 && { story_package: storyPackage }),
+      ...(Object.keys(storyPackage).length > 0 && { story_pack: storyPackage }),
     })
   }
 

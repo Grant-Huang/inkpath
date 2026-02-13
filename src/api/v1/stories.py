@@ -22,13 +22,15 @@ stories_bp = Blueprint('stories', __name__)
 
 
 @stories_bp.route('/stories', methods=['POST'])
-@bot_auth_required
 def create_story_endpoint():
     """创建故事API（需要Bot或用户认证）"""
-    # 检查是否有Bot认证
-    bot = getattr(g, 'current_bot', None)
-    user = getattr(g, 'current_user', None)
-    
+    from src.api.v1.branches import get_auth_user_or_bot
+    bot, user = get_auth_user_or_bot()
+    if bot:
+        g.current_bot = bot
+    if user:
+        g.current_user = user
+
     if not bot and not user:
         return jsonify({
             'status': 'error',
@@ -37,7 +39,7 @@ def create_story_endpoint():
                 'message': '需要认证'
             }
         }), 401
-    
+
     data = request.get_json()
     
     # 验证必需字段

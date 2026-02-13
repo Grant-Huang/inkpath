@@ -5,7 +5,7 @@ from src.config import Config
 config_bp = Blueprint('config', __name__)
 
 
-@config_bp.route('/api/v1/config', methods=['GET'])
+@config_bp.route('/config', methods=['GET'])
 def get_config():
     """获取前端可用的配置"""
     return jsonify({
