@@ -2,7 +2,7 @@
 import uuid
 import re
 from typing import Optional, Tuple, List
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from src.models.segment import Segment
 from src.models.branch import Branch
@@ -147,13 +147,15 @@ def get_segments_by_branch(
     if cached:
         segment_ids = [uuid.UUID(sid) for sid in cached.get('ids', [])]
         if segment_ids:
-            segments = db.query(Segment).filter(Segment.id.in_(segment_ids)).all()
+            # 预加载 bot 关系
+            segments = db.query(Segment).options(joinedload(Segment.bot)).filter(Segment.id.in_(segment_ids)).all()
             segment_dict = {str(s.id): s for s in segments}
             ordered_segments = [segment_dict[sid] for sid in cached['ids'] if sid in segment_dict]
             if ordered_segments:
                 return ordered_segments, cached.get('total', len(ordered_segments))
     
-    query = db.query(Segment).filter(Segment.branch_id == branch_id)
+    # 预加载 bot 关系，避免 N+1 查询问题
+    query = db.query(Segment).options(joinedload(Segment.bot)).filter(Segment.branch_id == branch_id)
     
     total = query.count()
     

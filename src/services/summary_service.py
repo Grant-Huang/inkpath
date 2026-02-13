@@ -1,4 +1,4 @@
-"""摘要生成服务 - 使用 MiniMax 或 Google Gemini LLM"""
+"""摘要生成服务 - 使用 G-access、MiniMax 或 Google Gemini LLM"""
 import uuid
 import json
 import requests
@@ -35,6 +35,85 @@ def format_segments(segments: list[Segment]) -> str:
     for seg in segments:
         lines.append(f"【第{seg.sequence_order}段】\n{seg.content}")
     return "\n\n".join(lines)
+
+
+def generate_summary_with_gaccess(db: Session, branch_id: uuid.UUID) -> Optional[str]:
+    """使用 G-access（Vercel Gemini 代理）生成摘要"""
+    gaccess_url = getattr(Config, 'GACCESS_URL', '').strip()
+    gaccess_token = getattr(Config, 'GACCESS_TOKEN', '').strip()
+    
+    if not gaccess_url or not gaccess_token:
+        print("G-access 未配置")
+        return None
+    
+    branch = db.query(Branch).filter(Branch.id == branch_id).first()
+    story = db.query(Story).filter(Story.id == branch.story_id).first() if branch else None
+    if not branch or not story:
+        return None
+    
+    max_segments = getattr(Config, 'SUMMARY_MAX_SEGMENTS', 20)
+    segments = db.query(Segment).filter(
+        Segment.branch_id == branch_id
+    ).order_by(Segment.sequence_order.asc()).all()
+    
+    if not segments:
+        return None
+    
+    previous_summary = ""
+    start_index = 0
+    if len(segments) > max_segments:
+        previous_summary = branch.current_summary or ""
+        start_index = len(segments) - max_segments
+    
+    recent_segments = segments[start_index:]
+    
+    story_info = f"""故事标题：{story.title}
+故事背景：{story.background[:500] if story.background else '无'}
+风格：{story.style_rules[:500] if story.style_rules else '无'}"""
+    
+    segments_text = format_segments(recent_segments)
+    prev_text = previous_summary if recent_segments else '（无）'
+    
+    prompt = f"""{story_info}
+
+前文摘要：{prev_text}
+
+最近续写（共{len(recent_segments)}段）：
+{segments_text}
+
+请用中文生成300-500字的故事进展摘要，包括：
+1. 当前故事发展到哪里
+2. 主要角色及处境
+3. 悬而未决的问题
+
+只输出摘要正文。"""
+    
+    try:
+        url = f"{gaccess_url}/api/gemini"
+        
+        headers = {
+            "Authorization": f"Bearer {gaccess_token}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {"prompt": prompt}
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()
+        
+        data = response.json()
+        # 解析 Gemini 响应格式
+        summary = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+        
+        if not summary:
+            print("G-access 返回空内容")
+            return None
+        
+        return summary.strip()
+    
+    except Exception as e:
+        print(f"G-access API 错误: {e}")
+        return None
 
 
 def generate_summary_with_minimax(db: Session, branch_id: uuid.UUID) -> Optional[str]:
@@ -230,12 +309,19 @@ def generate_summary(db: Session, branch_id: uuid.UUID, force: bool = False) -> 
         return None
     
     # 根据配置选择 LLM Provider
-    provider = getattr(Config, 'LLM_PROVIDER', 'minimax')
+    provider = getattr(Config, 'LLM_PROVIDER', 'gaccess').lower()
     
-    if provider == 'gemini':
-        summary = generate_summary_with_gemini(db, branch_id)
-    else:
+    # 优先级：G-access > MiniMax > Gemini
+    summary = None
+    
+    if provider == 'gaccess':
+        summary = generate_summary_with_gaccess(db, branch_id)
+    
+    if summary is None and provider in ['gaccess', 'minimax']:
         summary = generate_summary_with_minimax(db, branch_id)
+    
+    if summary is None:
+        summary = generate_summary_with_gemini(db, branch_id)
     
     if not summary:
         return None

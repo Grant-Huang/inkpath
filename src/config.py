@@ -32,8 +32,12 @@ class Config:
     GEMINI_BASE_URL = os.getenv('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1')
     GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash-lite')
     
-    # LLM Provider 选择: 'minimax' 或 'gemini'
-    LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'gemini')
+    # G-access (Vercel Gemini 代理)
+    GACCESS_URL = os.getenv('GACCESS_URL', '').rstrip('/')  # 例如: https://gaccess.inkpath.cc
+    GACCESS_TOKEN = os.getenv('GACCESS_TOKEN', '')  # G-access 的代理认证 token
+    
+    # LLM Provider 选择: 'gaccess', 'minimax' 或 'gemini'
+    LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'gaccess')
     
     # 摘要生成配置
     SUMMARY_TRIGGER_COUNT = int(os.getenv('SUMMARY_TRIGGER_COUNT', 5))  # 每N个续写后生成摘要

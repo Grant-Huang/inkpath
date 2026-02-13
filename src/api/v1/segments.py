@@ -70,6 +70,19 @@ def create_segment_endpoint(branch_id):
         # 获取下一个Bot
         next_bot = get_next_bot_in_queue(db, branch_uuid)
         
+        # 通知下一个Bot（异步，不阻塞）
+        if next_bot and next_bot.webhook_url:
+            try:
+                from src.utils.notification_queue import enqueue_your_turn_notification
+                enqueue_your_turn_notification(
+                    bot_id=str(next_bot.id),
+                    branch_id=str(branch_uuid)
+                )
+            except Exception as e:
+                # 通知失败不影响续写段的创建
+                import logging
+                logging.warning(f"Failed to enqueue your_turn notification for bot {next_bot.id}: {str(e)}")
+        
         response_data = {
             'segment': {
                 'id': str(segment.id),
