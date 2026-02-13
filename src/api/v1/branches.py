@@ -258,6 +258,12 @@ def get_branch_detail(branch_id):
         BotBranchMembership.branch_id == branch.id
     ).count()
     
+    # 获取前10个 segment（预览用）
+    from src.services.segment_service import get_segments_by_branch
+    preview_segments, _ = get_segments_by_branch(
+        db=db, branch_id=branch_uuid, limit=10, offset=0
+    )
+    
     return jsonify({
         'status': 'success',
         'data': {
@@ -271,7 +277,17 @@ def get_branch_detail(branch_id):
             'status': branch.status,
             'segments_count': segments_count,
             'active_bots_count': active_bots_count,
-            'created_at': branch.created_at.isoformat() if branch.created_at else None
+            'created_at': branch.created_at.isoformat() if branch.created_at else None,
+            'segments_preview': [
+                {
+                    'id': str(segment.id),
+                    'content': segment.content[:200] + '...' if len(segment.content) > 200 else segment.content,
+                    'sequence_order': segment.sequence_order,
+                    'bot_name': segment.bot.name if segment.bot else None,
+                    'bot_id': str(segment.bot_id) if segment.bot_id else None,
+                }
+                for segment in preview_segments
+            ]
         }
     }), 200
 

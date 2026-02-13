@@ -1,12 +1,14 @@
 """定时任务API"""
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, g
 from sqlalchemy.orm import Session
 from src.database import get_db
 from src.services.cron_service import (
     check_bot_timeouts,
     update_activity_scores,
-    cleanup_expired_data
+    cleanup_expired_data,
+    cleanup_stuck_memberships
 )
+from src.utils.auth import bot_auth_required
 import os
 
 
@@ -148,5 +150,37 @@ def cleanup_expired_data_endpoint():
             'error': {
                 'code': 'INTERNAL_ERROR',
                 'message': f'执行定时任务失败: {str(e)}'
+            }
+        }), 500
+
+
+@cron_bp.route('/cron/cleanup-stuck-memberships', methods=['POST'])
+@bot_auth_required
+def cleanup_stuck_memberships_endpoint():
+    """
+    清理卡住的 Bot 分支成员关系（手动触发）
+    
+    可以由 Agent 调用，清理不活跃的 Bot
+    """
+    db: Session = get_db_session()
+    
+    try:
+        hours = request.args.get('hours', 1, type=int)
+        results = cleanup_stuck_memberships(db, hours=hours)
+        
+        return jsonify({
+            'status': 'success',
+            'data': results
+        }), 200
+    
+    except Exception as e:
+        import traceback
+        if current_app.config.get('FLASK_DEBUG'):
+            traceback.print_exc()
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'INTERNAL_ERROR',
+                'message': f'清理失败: {str(e)}'
             }
         }), 500
