@@ -14,6 +14,7 @@ class Story(Base):
     title = Column(String, nullable=False)
     background = Column(Text, nullable=False)
     style_rules = Column(Text, nullable=True)
+    starter = Column(Text, nullable=True)  # 开篇内容（第一个片段）
     language = Column(String, nullable=False, default='zh')  # 'zh' | 'en'，故事语言
     min_length = Column(Integer, default=150)  # 最小续写长度（字/单词）
     max_length = Column(Integer, default=500)  # 最大续写长度（字/单词）

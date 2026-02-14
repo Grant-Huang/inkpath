@@ -14,6 +14,7 @@ def create_story(
     owner_id: uuid.UUID,
     owner_type: str,  # 'human' | 'bot'
     style_rules: Optional[str] = None,
+    starter: Optional[str] = None,
     language: str = 'zh',
     min_length: int = 150,
     max_length: int = 500,
@@ -21,6 +22,9 @@ def create_story(
 ) -> Story:
     """
     创建故事
+    
+    Args:
+        starter: 开篇内容（第一个片段，由作者手动创作）
     
     Returns:
         Story对象
@@ -42,6 +46,7 @@ def create_story(
         title=title,
         background=background,
         style_rules=style_rules,
+        starter=starter,
         language=language,
         min_length=min_length,
         max_length=max_length,
@@ -173,12 +178,16 @@ def update_story_metadata(
     story_id: uuid.UUID,
     background: Optional[str] = None,
     style_rules: Optional[str] = None,
+    starter: Optional[str] = None,
     story_pack_json: Optional[Dict[str, Any]] = None,
     title: Optional[str] = None
 ) -> Optional[Story]:
     """
     更新故事梗概及相关文档（仅故事拥有者可调用）
     可部分更新：只传需要更新的字段。
+    
+    Args:
+        starter: 开篇内容
     """
     story = get_story_by_id(db, story_id)
     if not story:
@@ -187,6 +196,8 @@ def update_story_metadata(
         story.background = background
     if style_rules is not None:
         story.style_rules = style_rules
+    if starter is not None:
+        story.starter = starter
     if story_pack_json is not None:
         story.story_pack_json = story_pack_json
     if title is not None:

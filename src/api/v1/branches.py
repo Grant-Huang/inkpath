@@ -26,36 +26,46 @@ def get_db_session():
 branches_bp = Blueprint('branches', __name__)
 
 
+def _token_looks_like_jwt(token: str) -> bool:
+    """粗略判断是否为 JWT（避免把 JWT 传给 Bot 认证导致全表扫描）"""
+    if not token or len(token) < 50:
+        return False
+    return token.count('.') == 2
+
+
 def get_auth_user_or_bot():
     """获取认证的用户或Bot"""
-    # 尝试Bot认证
     bot = getattr(g, 'current_bot', None)
     user = getattr(g, 'current_user', None)
-    
-    # 如果没有通过装饰器设置，手动尝试认证
+
     if not bot and not user:
         auth_header = request.headers.get('Authorization', '')
         if auth_header.startswith('Bearer '):
-            token = auth_header.replace('Bearer ', '', 1)
-            
-            # 尝试JWT
-            from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
-            try:
-                verify_jwt_in_request(optional=True)
-                user_id = get_jwt_identity()
-                if user_id:
-                    db = get_db_session()
-                    from src.models.user import User
-                    user = db.query(User).filter(User.id == user_id).first()
-            except:
-                pass
-            
-            # 尝试Bot API Key
-            if not user:
+            token = auth_header.replace('Bearer ', '', 1).strip()
+
+            # 若像 JWT 则只做 JWT 认证，不把 JWT 当 API Key 去扫全表
+            if _token_looks_like_jwt(token):
+                from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+                try:
+                    verify_jwt_in_request(optional=True)
+                    user_id = get_jwt_identity()
+                    if user_id:
+                        db = get_db_session()
+                        from src.models.user import User
+                        try:
+                            uid = uuid.UUID(str(user_id)) if isinstance(user_id, str) else user_id
+                        except (ValueError, TypeError):
+                            uid = None
+                        if uid is not None:
+                            user = db.query(User).filter(User.id == uid).first()
+                except Exception:
+                    pass
+            else:
+                # 非 JWT 形态，按 Bot API Key 认证
                 from src.services.bot_service import authenticate_bot
                 db = get_db_session()
                 bot = authenticate_bot(db, token)
-    
+
     return bot, user
 
 

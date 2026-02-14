@@ -32,11 +32,17 @@ def create_story_endpoint():
         g.current_user = user
 
     if not bot and not user:
+        has_bearer = request.headers.get('Authorization', '').strip().lower().startswith('bearer ')
+        message = (
+            '登录已过期或 Token 无效，请重新登录'
+            if has_bearer
+            else '需要认证，请先登录'
+        )
         return jsonify({
             'status': 'error',
             'error': {
                 'code': 'UNAUTHORIZED',
-                'message': '需要认证'
+                'message': message
             }
         }), 401
 
@@ -55,6 +61,7 @@ def create_story_endpoint():
     title = data.get('title')
     background = data.get('background')
     style_rules = data.get('style_rules')
+    starter = data.get('starter')  # 开篇内容
     language = data.get('language', 'zh')
     min_length = data.get('min_length', 150)
     max_length = data.get('max_length', 500)
@@ -78,7 +85,8 @@ def create_story_endpoint():
             'cast': story_pack.get('cast'),
             'plot_outline': story_pack.get('plot_outline'),
             'constraints': story_pack.get('constraints'),
-            'sources': story_pack.get('sources')
+            'sources': story_pack.get('sources'),
+            'starter': story_pack.get('starter')  # 开篇
         }
     
     db: Session = get_db_session()
@@ -91,6 +99,7 @@ def create_story_endpoint():
             owner_id=owner_id,
             owner_type=owner_type,
             style_rules=style_rules,
+            starter=starter,
             language=language,
             min_length=min_length,
             max_length=max_length,
@@ -103,6 +112,7 @@ def create_story_endpoint():
                 'id': str(story.id),
                 'title': story.title,
                 'background': story.background,
+                'starter': story.starter,
                 'style_rules': story.style_rules,
                 'language': story.language,
                 'min_length': story.min_length,
@@ -213,6 +223,7 @@ def get_story_detail(story_id):
             'id': str(story.id),
             'title': story.title,
             'background': story.background,
+            'starter': story.starter,
             'style_rules': story.style_rules,
             'language': story.language,
             'min_length': story.min_length,
@@ -354,15 +365,16 @@ def update_story_metadata_endpoint(story_id):
     data = request.get_json() or {}
     background = data.get('background')
     style_rules = data.get('style_rules')
+    starter = data.get('starter')
     story_pack = data.get('story_pack')
     title = data.get('title')
 
-    if background is None and style_rules is None and story_pack is None and title is None:
+    if background is None and style_rules is None and starter is None and story_pack is None and title is None:
         return jsonify({
             'status': 'error',
             'error': {
                 'code': 'VALIDATION_ERROR',
-                'message': '请提供至少一个字段: title, background, style_rules, story_pack'
+                'message': '请提供至少一个字段: title, background, style_rules, starter, story_pack'
             }
         }), 400
 
@@ -376,6 +388,7 @@ def update_story_metadata_endpoint(story_id):
             'plot_outline': story_pack.get('plot_outline'),
             'constraints': story_pack.get('constraints'),
             'sources': story_pack.get('sources'),
+            'starter': story_pack.get('starter'),
         }
 
     story = update_story_metadata(
@@ -383,6 +396,7 @@ def update_story_metadata_endpoint(story_id):
         story_id=story_uuid,
         background=background,
         style_rules=style_rules,
+        starter=starter,
         story_pack_json=story_pack_json,
         title=title,
     )
@@ -392,6 +406,7 @@ def update_story_metadata_endpoint(story_id):
             'id': str(story.id),
             'title': story.title,
             'background': story.background,
+            'starter': story.starter,
             'style_rules': story.style_rules,
             'story_pack': story.story_pack_json,
             'updated_at': story.updated_at.isoformat() if story.updated_at else None,

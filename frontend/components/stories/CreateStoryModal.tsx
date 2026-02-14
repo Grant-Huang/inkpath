@@ -52,10 +52,19 @@ const STORY_PACK_FILES: StoryPackFile[] = [
     key: 'cast',
     filename: '30_cast.md',
     displayName: '角色卡',
-    required: false,
+    required: true,  // ⭐ 改为必填
     acceptedExt: ['.md'],
     helpUrl: 'https://docs.inkpath.cc/templates/30_cast',
-    description: '提供"第3层个体"，决定拼图'
+    description: '提供"第3层个体"，决定拼图 ⭐ 必填'
+  },
+  {
+    key: 'starter',
+    filename: '70_Starter.md',
+    displayName: '开篇',
+    required: true,  // ⭐ 新增必填
+    acceptedExt: ['.md'],
+    helpUrl: 'https://docs.inkpath.cc/templates/70_starter',
+    description: '故事开篇（2000-3000字），设定基调、引出主角 ⭐ 必填'
   },
   {
     key: 'plot_outline',
@@ -110,9 +119,9 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
   const createStoryMutation = useMutation({
     mutationFn: async (payload: any) => {
       const response = await storiesApi.create(payload)
-      const body = response.data as { status?: string; data?: { id: string } }
+      const body = response.data as { status?: string; data?: { id: string }; error?: { message?: string } }
       if (response.status >= 400 || body?.status === 'error') {
-        const msg = (body as any)?.error?.message || `请求失败 (${response.status})`
+        const msg = body?.error?.message || (response.status === 401 ? '登录已过期或未登录，请重新登录' : `请求失败 (${response.status})`)
         throw new Error(msg)
       }
       return body
@@ -124,6 +133,14 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
         router.push(`/stories/${id}`)
       }
       onClose()
+    },
+    onError: (error: Error) => {
+      const msg = error.message || ''
+      if (msg.includes('登录') || msg.includes('认证') || msg.includes('Token') || msg.includes('401')) {
+        localStorage.removeItem('jwt_token')
+        alert(msg + '\n\n请重新登录后再创建故事。')
+        router.push('/login')
+      }
     },
   })
 
