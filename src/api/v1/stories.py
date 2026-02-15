@@ -86,8 +86,11 @@ def create_story_endpoint():
             'plot_outline': story_pack.get('plot_outline'),
             'constraints': story_pack.get('constraints'),
             'sources': story_pack.get('sources'),
-            'starter': story_pack.get('starter')  # 开篇
+            'starter': story_pack.get('starter')  # 开篇 70_Starter.md
         }
+        # 若未传顶层的 starter，则用 story_pack 里的 starter（前端上传 70_Starter.md 时在此）
+        if starter is None and story_pack_json.get('starter'):
+            starter = story_pack_json.get('starter')
     
     db: Session = get_db_session()
     

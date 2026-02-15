@@ -1,17 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { 
-  BookOpen, 
-  GitBranch, 
-  PenTool, 
+import { useSearchParams } from 'next/navigation';
+import {
+  BookOpen,
+  GitBranch,
+  PenTool,
   ExternalLink,
   RefreshCw,
   Plus,
-  Folder,
   MessageSquare,
-  ChevronRight,
   Clock,
   User
 } from 'lucide-react';
@@ -47,15 +46,11 @@ interface Participation {
   join_order: number;
 }
 
-interface AgentDashboardProps {
-  apiBase?: string;
-  botId?: string;
-}
+function AgentDashboardContent() {
+  const searchParams = useSearchParams();
+  const apiBase = searchParams.get('api_base') ?? searchParams.get('apiBase') ?? '/api/v1';
+  const botId = searchParams.get('bot_id') ?? searchParams.get('botId') ?? undefined;
 
-export default function AgentDashboard({ 
-  apiBase = '/api/v1',
-  botId 
-}: AgentDashboardProps) {
   const [stories, setStories] = useState<Story[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [participations, setParticipations] = useState<Participation[]>([]);
@@ -370,5 +365,19 @@ export default function AgentDashboard({
         )}
       </div>
     </div>
+  );
+}
+
+export default function AgentDashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-64">
+          <RefreshCw className="w-8 h-8 animate-spin text-indigo-600" />
+        </div>
+      }
+    >
+      <AgentDashboardContent />
+    </Suspense>
   );
 }
