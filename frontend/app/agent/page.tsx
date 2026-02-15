@@ -1,173 +1,403 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
-import { 
-  Sparkles, 
-  MessageSquare, 
-  FolderOpen, 
-  GitBranch,
-  ArrowRight,
-  BookOpen,
-  Bot
-} from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function AgentPage() {
+interface Agent {
+  id: string;
+  name: string;
+  status: 'running' | 'idle' | 'error';
+  assigned_stories: string[];
+}
+
+interface StoryProgress {
+  id: string;
+  title: string;
+  segments_count: number;
+  last_updated: string;
+  summary: string;
+  next_action: string;
+  auto_continue: boolean;
+}
+
+interface Log {
+  timestamp: string;
+  level: 'info' | 'warn' | 'error' | 'success';
+  message: string;
+}
+
+export default function AgentPanelPage() {
+  const router = useRouter();
+  const [agent, setAgent] = useState<Agent | null>(null);
+  const [stories, setStories] = useState<StoryProgress[]>([]);
+  const [logs, setLogs] = useState<Log[]>([]);
+  const [selectedStory, setSelectedStory] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('inkpath_token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    fetchAgentData();
+    
+    // 模拟实时日志
+    const interval = setInterval(addLog, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchAgentData = async () => {
+    setIsLoading(true);
+    try {
+      // 获取 Agent 信息
+      const agentRes = await fetch('/api/v1/agent/me', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('inkpath_token')}` }
+      });
+      if (agentRes.ok) {
+        const data = await agentRes.json();
+        setAgent(data);
+      }
+
+      // 获取分配的故事
+      const storiesRes = await fetch('/api/v1/agent/stories', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('inkpath_token')}` }
+      });
+      if (storiesRes.ok) {
+        const data = await storiesRes.json();
+        setStories(data.data?.stories || []);
+        
+        // 添加初始日志
+        addLog('info', `已加载 ${data.data?.stories?.length || 0} 个分配的故事`);
+      }
+    } catch (error) {
+      addLog('error', '获取数据失败');
+      console.error('获取数据失败:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addLog = (level: Log['level'], message: string) => {
+    const newLog: Log = {
+      timestamp: new Date().toLocaleTimeString('zh-CN'),
+      level,
+      message
+    };
+    setLogs(prev => [...prev.slice(-99), newLog]); // 保留最近100条
+  };
+
+  const toggleAutoContinue = async (storyId: string, enabled: boolean) => {
+    try {
+      await fetch(`/api/v1/agent/stories/${storyId}/auto-continue`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('inkpath_token')}`
+        },
+        body: JSON.stringify({ enabled })
+      });
+      
+      addLog('success', `已${enabled ? '启用' : '禁用'}自动续写: ${stories.find(s => s.id === storyId)?.title}`);
+      fetchAgentData();
+    } catch (error) {
+      addLog('error', '更新设置失败');
+    }
+  };
+
+  const manualContinue = async (storyId: string) => {
+    addLog('info', `开始手动续写: ${stories.find(s => s.id === storyId)?.title}`);
+    
+    try {
+      await fetch(`/api/v1/agent/stories/${storyId}/continue`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('inkpath_token')}` }
+      });
+      
+      addLog('success', '续写完成');
+      fetchAgentData();
+    } catch (error) {
+      addLog('error', '续写失败');
+    }
+  };
+
+  const updateSummary = async (storyId: string) => {
+    addLog('info', '正在更新进度摘要...');
+    
+    try {
+      await fetch(`/api/v1/agent/stories/${storyId}/summarize`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('inkpath_token')}` }
+      });
+      
+      addLog('success', '进度摘要已更新');
+      fetchAgentData();
+    } catch (error) {
+      addLog('error', '更新摘要失败');
+    }
+  };
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    
+    if (minutes < 1) return '刚刚';
+    if (minutes < 60) return `${minutes} 分钟前`;
+    if (minutes < 1440) return `${Math.floor(minutes / 60)} 小时前`;
+    return `${Math.floor(minutes / 1440)} 天前`;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'running': return 'bg-green-500';
+      case 'idle': return 'bg-gray-400';
+      case 'error': return 'bg-red-500';
+      default: return 'bg-gray-400';
+    }
+  };
+
+  const getLogColor = (level: string) => {
+    switch (level) {
+      case 'success': return 'text-green-600';
+      case 'warn': return 'text-yellow-600';
+      case 'error': return 'text-red-600';
+      default: return 'text-blue-600';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white">加载中...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
-      {/* 标题区域 */}
-      <div className="text-center mb-12">
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-full text-indigo-700 mb-4">
-          <Bot className="w-5 h-5" />
-          <span className="text-sm font-medium">AI 创作助手</span>
-        </div>
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          InkPath Agent
-        </h1>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          通过对话创建故事包，管理你的 AI 创作故事。
-          与 AI 助手协作，快速生成完整的故事设定。
-        </p>
-      </div>
-
-      {/* 功能卡片 */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* 卡片 1: 故事包生成器 */}
-        <Link
-          href="/agent"
-          className="group relative bg-white rounded-2xl border p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
-        >
-          <div className="absolute top-4 right-4">
-            <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
+    <div className="min-h-screen bg-gray-900 text-white">
+      {/* 顶部导航 */}
+      <header className="bg-gray-800 border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push('/writer')}
+              className="text-gray-400 hover:text-white"
+            >
+              ← 返回
+            </button>
+            <h1 className="text-xl font-bold">InkPath Agent 控制台</h1>
           </div>
-          
-          <div className="w-14 h-14 bg-indigo-100 rounded-xl flex items-center justify-center mb-6">
-            <Sparkles className="w-7 h-7 text-indigo-600" />
-          </div>
-          
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            故事包生成器
-          </h2>
-          <p className="text-gray-600 mb-6">
-            通过对话描述你的故事想法，AI 会自动生成完整的故事包。
-            支持历史、科幻、悬疑等多种题材。
-          </p>
-          
-          <div className="flex items-center gap-2 text-indigo-600 font-medium text-sm">
-            <MessageSquare className="w-4 h-4" />
-            开始对话
-          </div>
-        </Link>
-
-        {/* 卡片 2: 我的故事管理 */}
-        <Link
-          href="/agent/dashboard"
-          className="group relative bg-white rounded-2xl border p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
-        >
-          <div className="absolute top-4 right-4">
-            <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
-          </div>
-          
-          <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-6">
-            <FolderOpen className="w-7 h-7 text-green-600" />
-          </div>
-          
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            我的故事
-          </h2>
-          <p className="text-gray-600 mb-6">
-            查看和管理你创建的故事、创建的分支、参与续写的故事列表。
-            快速跳转到 InkPath 继续创作。
-          </p>
-          
-          <div className="flex items-center gap-4 text-sm text-gray-500">
-            <span className="flex items-center gap-1">
-              <BookOpen className="w-4 h-4" />
-              创建的故事
-            </span>
-            <span className="flex items-center gap-1">
-              <GitBranch className="w-4 h-4" />
-              创建的分支
-            </span>
-          </div>
-        </Link>
-      </div>
-
-      {/* 功能特点 */}
-      <div className="mt-16">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6 text-center">
-          Agent 能帮你做什么
-        </h3>
-        
-        <div className="grid sm:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <MessageSquare className="w-6 h-6 text-amber-600" />
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${getStatusColor(agent?.status || 'idle')}`}></div>
+              <span className="text-sm text-gray-400">
+                {agent?.status === 'running' ? '运行中' : agent?.status === 'error' ? '错误' : '空闲'}
+              </span>
             </div>
-            <h4 className="font-medium text-gray-900 mb-1">对话式创作</h4>
-            <p className="text-sm text-gray-600">
-              用自然语言描述你的想法，AI 自动理解并生成
-            </p>
-          </div>
-          
-          <div className="text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Sparkles className="w-6 h-6 text-blue-600" />
-            </div>
-            <h4 className="font-medium text-gray-900 mb-1">完整故事包</h4>
-            <p className="text-sm text-gray-600">
-              自动生成证据、立场、角色、剧情等完整设定
-            </p>
-          </div>
-          
-          <div className="text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <FolderOpen className="w-6 h-6 text-green-600" />
-            </div>
-            <h4 className="font-medium text-gray-900 mb-1">一键提交</h4>
-            <p className="text-sm text-gray-600">
-              满意后直接提交到 InkPath，开始协作创作
-            </p>
+            <span className="text-gray-500">{agent?.name || 'Agent'}</span>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* 使用示例 */}
-      <div className="mt-16 bg-gray-50 rounded-2xl p-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          对话示例
-        </h3>
-        
-        <div className="space-y-3">
-          <div className="bg-white rounded-lg p-4 text-sm">
-            <span className="text-indigo-600 font-medium">用户：</span>
-            "写一个三国时期诸葛亮北伐的故事，参考马伯庸的《风起陇西》风格，从一个小兵的视角看这场战争。"
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* 左侧：故事列表 */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="bg-gray-800 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-medium">监控中的故事</h2>
+                <span className="text-sm text-gray-400">{stories.length} 个</span>
+              </div>
+              
+              <div className="space-y-3">
+                {stories.map(story => (
+                  <div
+                    key={story.id}
+                    className={`bg-gray-700 rounded-lg p-4 cursor-pointer transition-all ${
+                      selectedStory === story.id ? 'ring-2 ring-blue-500' : 'hover:bg-gray-650'
+                    }`}
+                    onClick={() => setSelectedStory(story.id)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-medium mb-1">{story.title}</h3>
+                        <div className="flex items-center gap-3 text-sm text-gray-400">
+                          <span>{story.segments_count} 片段</span>
+                          <span>·</span>
+                          <span>{formatTime(story.last_updated)}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            manualContinue(story.id);
+                          }}
+                          className="p-2 bg-blue-600 rounded hover:bg-blue-700"
+                          title="手动续写"
+                        >
+                          ▶
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateSummary(story.id);
+                          }}
+                          className="p-2 bg-gray-600 rounded hover:bg-gray-500"
+                          title="更新摘要"
+                        >
+                          ⟳
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* 自动续写开关 */}
+                    <div className="mt-3 flex items-center justify-between">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={story.auto_continue}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleAutoContinue(story.id, e.target.checked);
+                          }}
+                          className="rounded"
+                        />
+                        <span className="text-sm">自动续写</span>
+                      </label>
+                      
+                      {selectedStory === story.id && (
+                        <span className="text-xs text-gray-500">
+                          {story.auto_continue ? '每5分钟自动续写' : '手动控制'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                {stories.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    暂无分配的故事
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 选中故事详情 */}
+            {selectedStory && (
+              <div className="bg-gray-800 rounded-lg p-4">
+                {(() => {
+                  const story = stories.find(s => s.id === selectedStory);
+                  if (!story) return null;
+                  
+                  return (
+                    <>
+                      <h3 className="font-medium mb-3">{story.title} - 详情</h3>
+                      
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="bg-gray-700 rounded p-3">
+                          <div className="text-sm text-gray-400">片段数</div>
+                          <div className="text-xl font-bold">{story.segments_count}</div>
+                        </div>
+                        <div className="bg-gray-700 rounded p-3">
+                          <div className="text-sm text-gray-400">状态</div>
+                          <div className="text-xl font-bold">
+                            {story.auto_continue ? '自动' : '手动'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <div className="text-sm text-gray-400 mb-1">当前摘要</div>
+                        <div className="text-sm bg-gray-700 rounded p-3">
+                          {story.summary || '暂无'}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">下一步计划</div>
+                        <div className="text-sm bg-gray-700 rounded p-3">
+                          {story.next_action || '暂无'}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
           </div>
-          
-          <div className="bg-white rounded-lg p-4 text-sm">
-            <span className="text-indigo-600 font-medium">Agent：</span>
-            "好的！我需要了解更多细节..."
-          </div>
-          
-          <div className="bg-white rounded-lg p-4 text-sm">
-            <span className="text-indigo-600 font-medium">用户：</span>
-            "核心冲突是明知不可为而为之的悲壮，主角是一个刚入伍的蜀军小兵。"
-          </div>
-          
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <span className="text-green-700 font-medium">✅ Agent 已生成完整故事包，包含：</span>
-            <ul className="mt-2 text-sm text-green-600 space-y-1">
-              <li>- 00_meta.md 元数据</li>
-              <li>- 10_evidence_pack.md 证据层（6条证据）</li>
-              <li>- 20_stance_pack.md 立场层（5个立场）</li>
-              <li>- 30_cast.md 角色层（4个角色）</li>
-              <li>- 40_plot_outline.md 剧情大纲</li>
-              <li>- 50_constraints.md 约束条件</li>
-              <li>- 60_sources.md 资料来源</li>
-            </ul>
+
+          {/* 右侧：日志和控制台 */}
+          <div className="space-y-4">
+            {/* Agent 状态 */}
+            <div className="bg-gray-800 rounded-lg p-4">
+              <h3 className="font-medium mb-3">Agent 状态</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">名称</span>
+                  <span>{agent?.name || '-'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">状态</span>
+                  <span className={agent?.status === 'running' ? 'text-green-400' : 'text-gray-400'}>
+                    {agent?.status === 'running' ? '运行中' : agent?.status === 'error' ? '错误' : '空闲'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">分配故事</span>
+                  <span>{stories.length} 个</span>
+                </div>
+              </div>
+              
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={fetchAgentData}
+                  className="flex-1 py-2 bg-blue-600 rounded text-sm hover:bg-blue-700"
+                >
+                  刷新
+                </button>
+                <button
+                  className="flex-1 py-2 bg-gray-700 rounded text-sm hover:bg-gray-600"
+                >
+                  设置
+                </button>
+              </div>
+            </div>
+
+            {/* 操作日志 */}
+            <div className="bg-gray-800 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium">操作日志</h3>
+                <button
+                  onClick={() => setLogs([])}
+                  className="text-xs text-gray-400 hover:text-white"
+                >
+                  清空
+                </button>
+              </div>
+              
+              <div 
+                ref={logEndRef}
+                className="h-64 overflow-y-auto space-y-2 text-sm font-mono"
+              >
+                {logs.length === 0 ? (
+                  <div className="text-gray-500 text-center py-4">暂无日志</div>
+                ) : (
+                  logs.map((log, i) => (
+                    <div key={i} className="flex gap-2">
+                      <span className="text-gray-500">[{log.timestamp}]</span>
+                      <span className={getLogColor(log.level)}>{log.message}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

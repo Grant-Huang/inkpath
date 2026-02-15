@@ -1,363 +1,180 @@
-"""认证API"""
-from flask import Blueprint, request, jsonify, g, current_app
-from sqlalchemy.orm import Session
-from src.database import get_db
-from src.services.bot_service import register_bot, get_bot_by_id
-from src.services.user_service import register_user, authenticate_user
-from src.utils.auth import bot_auth_required, user_auth_required
-from src.models.user import User
-from flask_jwt_extended import create_access_token
+# 用户认证模块
 
-
-def get_db_session():
-    """获取数据库会话（支持测试模式）"""
-    # 优先使用测试数据库
-    if current_app.config.get('TESTING') and 'TEST_DB' in current_app.config:
-        return current_app.config['TEST_DB']
-    # 否则使用正常的数据库连接
-    return next(get_db())
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import (
+    JWTManager, create_access_token, 
+    jwt_required, get_jwt_identity,
+    get_jwt
+)
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
+import uuid
 
 auth_bp = Blueprint('auth', __name__)
+jwt = JWTManager()
 
+# 存储（生产环境应使用数据库）
+users_db = {}
 
-@auth_bp.route('/auth/bot/register', methods=['POST'])
-def register_bot_endpoint():
-    """Bot注册API"""
+@auth_bp.route('/register', methods=['POST'])
+def register():
+    """用户注册"""
     data = request.get_json()
     
-    # 验证必需字段
-    if not data or 'name' not in data or 'model' not in data:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': '缺少必需字段: name, model'
-            }
-        }), 400
+    # 验证必填字段
+    required_fields = ['username', 'email', 'password', 'user_type']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"error": f"缺少必填字段: {field}"}), 400
     
-    name = data.get('name')
-    model = data.get('model')
-    webhook_url = data.get('webhook_url')
-    language = data.get('language', 'zh')
+    # 检查用户名/邮箱是否已存在
+    for user in users_db.values():
+        if user['username'] == data['username']:
+            return jsonify({"error": "用户名已存在"}), 400
+        if user['email'] == data['email']:
+            return jsonify({"error": "邮箱已存在"}), 400
     
-    # 验证语言
-    if language not in ['zh', 'en']:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': 'language必须是"zh"或"en"'
-            }
-        }), 400
+    # 验证用户类型
+    if data['user_type'] not in ['human', 'agent']:
+        return jsonify({"error": "无效的用户类型"}), 400
     
-    db: Session = get_db_session()
+    # 创建用户
+    user_id = str(uuid.uuid4())
+    users_db[user_id] = {
+        'id': user_id,
+        'username': data['username'],
+        'email': data['email'],
+        'password_hash': generate_password_hash(data['password']),
+        'user_type': data['user_type'],
+        'created_at': datetime.utcnow().isoformat(),
+        'updated_at': datetime.utcnow().isoformat()
+    }
     
-    try:
-        bot, api_key = register_bot(
-            db=db,
-            name=name,
-            model=model,
-            webhook_url=webhook_url,
-            language=language
-        )
-        
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'bot_id': str(bot.id),
-                'api_key': api_key,  # 只返回一次
-                'name': bot.name
-            }
-        }), 201
+    # 生成 token
+    access_token = create_access_token(
+        identity=user_id,
+        additional_claims={'user_type': data['user_type']}
+    )
     
-    except ValueError as e:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': str(e)
-            }
-        }), 400
-    except Exception as e:
-        import traceback
-        # 在开发环境打印详细错误
-        if current_app.config.get('FLASK_DEBUG'):
-            traceback.print_exc()
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'INTERNAL_ERROR',
-                'message': f'注册失败: {str(e)}'
-            }
-        }), 500
-
-
-@auth_bp.route('/auth/bot/me', methods=['GET'])
-@bot_auth_required
-def get_bot_endpoint():
-    """获取当前 Bot 信息"""
-    bot = g.current_bot
     return jsonify({
-        'status': 'success',
-        'data': {
-            'id': str(bot.id),
-            'name': bot.name,
-            'model': bot.model,
-            'status': bot.status,
-            'reputation': bot.reputation
-        }
-    })
+        "message": "注册成功",
+        "user": {
+            "id": user_id,
+            "username": data['username'],
+            "email": data['email'],
+            "user_type": data['user_type']
+        },
+        "access_token": access_token
+    }), 201
 
 
-@auth_bp.route('/auth/user/register', methods=['POST'])
-def register_user_endpoint():
-    """用户注册API"""
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    """用户登录"""
     data = request.get_json()
     
-    # 验证必需字段
-    if not data or 'email' not in data or 'name' not in data or 'password' not in data:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': '缺少必需字段: email, name, password'
-            }
-        }), 400
+    if not data.get('email') or not data.get('password'):
+        return jsonify({"error": "邮箱和密码必填"}), 400
     
-    email = data.get('email')
-    name = data.get('name')
-    password = data.get('password')
-    auth_provider = data.get('auth_provider', 'email')
-    
-    # 验证邮箱格式（简单验证）
-    if '@' not in email:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': '无效的邮箱格式'
-            }
-        }), 400
-    
-    # 验证密码长度
-    if len(password) < 6:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': '密码长度至少6位'
-            }
-        }), 400
-    
-    db: Session = get_db_session()
-    
-    try:
-        user = register_user(
-            db=db,
-            email=email,
-            name=name,
-            password=password,
-            auth_provider=auth_provider
-        )
-        
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'user_id': str(user.id),
-                'email': user.email,
-                'name': user.name
-            }
-        }), 201
-    
-    except ValueError as e:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': str(e)
-            }
-        }), 400
-    except Exception as e:
-        import traceback
-        if current_app.config.get('FLASK_DEBUG'):
-            traceback.print_exc()
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'INTERNAL_ERROR',
-                'message': f'注册失败: {str(e)}'
-            }
-        }), 500
-
-
-@auth_bp.route('/auth/login', methods=['POST'])
-def login_user():
-    """用户登录API"""
-    data = request.get_json()
-    
-    if not data or 'email' not in data or 'password' not in data:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': '缺少必需字段: email, password'
-            }
-        }), 400
-    
-    email = data.get('email')
-    password = data.get('password')
-    
-    db: Session = get_db_session()
-    user = authenticate_user(db, email, password)
+    # 查找用户
+    user = None
+    for u in users_db.values():
+        if u['email'] == data['email']:
+            user = u
+            break
     
     if not user:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'UNAUTHORIZED',
-                'message': '邮箱或密码错误'
-            }
-        }), 401
+        return jsonify({"error": "用户不存在"}), 401
     
-    # 生成JWT Token
-    access_token = create_access_token(identity=str(user.id))
+    # 验证密码
+    if not check_password_hash(user['password_hash'], data['password']):
+        return jsonify({"error": "密码错误"}), 401
+    
+    # 生成 token
+    access_token = create_access_token(
+        identity=user['id'],
+        additional_claims={'user_type': user['user_type']}
+    )
     
     return jsonify({
-        'status': 'success',
-        'data': {
-            'token': access_token,
-            'user': {
-                'id': str(user.id),
-                'email': user.email,
-                'name': user.name
-            }
-        }
+        "message": "登录成功",
+        "user": {
+            "id": user['id'],
+            "username": user['username'],
+            "email": user['email'],
+            "user_type": user['user_type']
+        },
+        "access_token": access_token
     }), 200
 
 
-@auth_bp.route('/bots/<bot_id>', methods=['GET'])
-@bot_auth_required
-def get_bot_info(bot_id):
-    """获取Bot信息（需要Bot认证）"""
-    import uuid
-    try:
-        bot_uuid = uuid.UUID(bot_id)
-    except ValueError:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': '无效的Bot ID格式'
-            }
-        }), 400
+@auth_bp.route('/me', methods=['GET'])
+@jwt_required()
+def get_me():
+    """获取当前用户信息"""
+    user_id = get_jwt_identity()
+    user = users_db.get(user_id)
     
-    db: Session = get_db_session()
-    bot = get_bot_by_id(db, bot_uuid)
-    
-    if not bot:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'NOT_FOUND',
-                'message': 'Bot不存在'
-            }
-        }), 404
+    if not user:
+        return jsonify({"error": "用户不存在"}), 404
     
     return jsonify({
-        'status': 'success',
-        'data': {
-            'id': str(bot.id),
-            'name': bot.name,
-            'model': bot.model,
-            'language': bot.language,
-            'reputation': bot.reputation,
-            'status': bot.status,
-            'created_at': bot.created_at.isoformat() if bot.created_at else None
-        }
+        "id": user['id'],
+        "username": user['username'],
+        "email": user['email'],
+        "user_type": user['user_type'],
+        "created_at": user['created_at']
     }), 200
 
 
-@auth_bp.route('/users/me', methods=['GET'])
-@user_auth_required
-def get_my_info():
-    """获取当前登录用户信息"""
-    user = getattr(g, 'current_user', None)
-    
-    if not user:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'UNAUTHORIZED',
-                'message': '未登录'
-            }
-        }), 401
-    
-    return jsonify({
-        'status': 'success',
-        'data': {
-            'id': str(user.id),
-            'email': user.email,
-            'name': user.name,
-            'bio': user.bio,
-            'avatar_url': user.avatar_url,
-            'created_at': user.created_at.isoformat() if user.created_at else None
-        }
-    }), 200
+@auth_bp.route('/logout', methods=['POST'])
+@jwt_required()
+def logout():
+    """用户登出（客户端删除 token 即可）"""
+    return jsonify({"message": "已登出"}), 200
 
 
-@auth_bp.route('/users/me', methods=['PATCH'])
-@user_auth_required
-def update_my_info():
-    """更新当前登录用户信息"""
-    user = getattr(g, 'current_user', None)
+# Agent 注册（需要管理员权限）
+@auth_bp.route('/register_agent', methods=['POST'])
+@jwt_required()
+def register_agent():
+    """Agent 注册"""
+    current_user_id = get_jwt_identity()
     
-    if not user:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'UNAUTHORIZED',
-                'message': '未登录'
-            }
-        }), 401
+    # 检查是否是管理员
+    user = users_db.get(current_user_id, {})
+    if user.get('user_type') != 'admin':
+        return jsonify({"error": "需要管理员权限"}), 403
     
     data = request.get_json()
-    if not data:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': '缺少请求体'
-            }
-        }), 400
     
-    db: Session = get_db_session()
+    required_fields = ['username', 'email', 'agent_name']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"error": f"缺少必填字段: {field}"}), 400
     
-    try:
-        from src.services.user_service import update_user_profile
-        user = update_user_profile(
-            db=db,
-            user_id=user.id,
-            name=data.get('name'),
-            bio=data.get('bio'),
-            avatar_url=data.get('avatar_url')
-        )
-        
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'id': str(user.id),
-                'email': user.email,
-                'name': user.name,
-                'bio': user.bio,
-                'avatar_url': user.avatar_url,
-                'created_at': user.created_at.isoformat() if user.created_at else None
-            }
-        }), 200
-    except ValueError as e:
-        return jsonify({
-            'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': str(e)
-            }
-        }), 400
+    # 创建 Agent
+    user_id = str(uuid.uuid4())
+    users_db[user_id] = {
+        'id': user_id,
+        'username': data['username'],
+        'email': data['email'],
+        'password_hash': generate_password_hash(data['password']),
+        'user_type': 'agent',
+        'agent_name': data['agent_name'],
+        'assigned_stories': data.get('assigned_stories', []),
+        'created_at': datetime.utcnow().isoformat(),
+        'updated_at': datetime.utcnow().isoformat()
+    }
+    
+    access_token = create_access_token(
+        identity=user_id,
+        additional_claims={'user_type': 'agent'}
+    )
+    
+    return jsonify({
+        "message": "Agent 注册成功",
+        "agent_id": user_id,
+        "agent_name": data['agent_name'],
+        "access_token": access_token
+    }), 201

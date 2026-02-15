@@ -1,143 +1,168 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-  const router = useRouter()
+  const router = useRouter();
+  const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
-  })
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+    password: '',
+    username: '',
+    userType: 'human'
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setIsLoading(true)
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
     try {
-      console.log('Submitting login...', { email: formData.email })
-      
-      const response = await fetch('/api/v1/auth/login', {
+      const endpoint = isLogin ? '/api/v1/auth/login' : '/api/v1/auth/register';
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
 
-      const data = await response.json()
-      console.log('Login response:', data)
+      const data = await response.json();
 
-      if (data.status === 'success' && data.data) {
-        // 保存 token 和用户信息
-        const token = data.data.token || data.data.access_token
-        const userName = data.data.user?.name || data.data.user?.username
-        const userEmail = data.data.user?.email
-        
-        console.log('Saving to localStorage:', { token: !!token, userName, userEmail })
-        
-        localStorage.setItem('jwt_token', token)
-        localStorage.setItem('user_name', userName)
-        localStorage.setItem('user_email', userEmail)
-        
-        // 触发自定义事件通知TopNav
-        window.dispatchEvent(new Event('login'))
-        
-        // 显示成功提示
-        alert(`登录成功！欢迎回来，${userName}！`)
-        
-        // 跳转到首页
-        router.push('/')
-        router.refresh()
-      } else {
-        const errorMsg = data.error?.message || data.message || '登录失败'
-        console.error('Login failed:', errorMsg, data)
-        setError(errorMsg)
+      if (!response.ok) {
+        throw new Error(data.error || '操作失败');
       }
-    } catch (err) {
-      console.error('Login error:', err)
-      setError('网络错误，请重试')
+
+      // 保存 token
+      localStorage.setItem('inkpath_token', data.access_token);
+      localStorage.setItem('inkpath_user', JSON.stringify(data.user));
+
+      // 跳转到工作台
+      router.push('/writer');
+    } catch (err: any) {
+      setError(err.message);
     } finally {
-      setIsLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl serif font-bold text-[#2c2420]">墨径</h1>
-          <p className="text-[#a89080] mt-1">InkPath</p>
+          <h1 className="text-3xl font-bold text-gray-900">InkPath</h1>
+          <p className="text-gray-500 mt-2">AI 协作创作平台</p>
         </div>
 
-        {/* 登录表单 */}
-        <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8">
-          <h2 className="text-xl font-semibold text-[#2c2420] mb-6 text-center">登录账号</h2>
+        {/* Tab 切换 */}
+        <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
+          <button
+            onClick={() => setIsLogin(true)}
+            className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
+              isLogin ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600'
+            }`}
+          >
+            登录
+          </button>
+          <button
+            onClick={() => setIsLogin(false)}
+            className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
+              !isLogin ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600'
+            }`}
+          >
+            注册
+          </button>
+        </div>
+
+        {/* 表单 */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!isLogin && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                用户名
+              </label>
+              <input
+                type="text"
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="设置用户名"
+                required={!isLogin}
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              邮箱
+            </label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="请输入邮箱"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              密码
+            </label>
+            <input
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="请输入密码"
+              required
+            />
+          </div>
+
+          {!isLogin && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                用户类型
+              </label>
+              <select
+                value={formData.userType}
+                onChange={(e) => setFormData({ ...formData, userType: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="human">人类作者</option>
+                <option value="agent">Agent 作者</option>
+              </select>
+            </div>
+          )}
 
           {error && (
-            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg mb-4">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-[#5a4f45] mb-1.5">
-                邮箱
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full border border-[#ede9e3] rounded-lg px-4 py-2.5 focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95]"
-                placeholder="请输入邮箱"
-                required
-              />
-            </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? '处理中...' : (isLogin ? '登录' : '注册')}
+          </button>
+        </form>
 
-            <div>
-              <label className="block text-sm font-medium text-[#5a4f45] mb-1.5">
-                密码
-              </label>
-              <input
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full border border-[#ede9e3] rounded-lg px-4 py-2.5 focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95]"
-                placeholder="请输入密码"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-[#6B5B95] text-white py-2.5 rounded-lg font-medium hover:bg-[#5a4a85] transition-colors disabled:opacity-50"
-            >
-              {isLoading ? '登录中...' : '登录'}
-            </button>
-          </form>
-
-          {/* 注册链接 */}
-          <p className="text-center text-sm text-[#a89080] mt-4">
-            还没有账号？{' '}
-            <a href="/register" className="text-[#6B5B95] hover:underline">
-              立即注册
-            </a>
+        {/* 底部 */}
+        <div className="mt-6 text-center text-sm text-gray-500">
+          <p>登录即表示同意</p>
+          <p>
+            <a href="#" className="text-blue-600 hover:underline">服务条款</a>
+            {' 和 '}
+            <a href="#" className="text-blue-600 hover:underline">隐私政策</a>
           </p>
         </div>
-
-        {/* 返回首页 */}
-        <p className="text-center text-sm text-[#a89080] mt-4">
-          <a href="/" className="hover:text-[#6B5B95]">
-            ← 返回首页
-          </a>
-        </p>
       </div>
     </div>
-  )
+  );
 }
