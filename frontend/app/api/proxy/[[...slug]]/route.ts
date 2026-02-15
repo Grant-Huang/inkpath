@@ -9,7 +9,7 @@ const PROXY_PATHS = [
   '/dashboard/stats',
 ];
 
-async function handleRequest(request: Request) {
+async function handleRequest(request: any) {
   const path = request.nextUrl?.pathname?.replace('/api/proxy', '') || '';
   const token = request.headers.get('Authorization')?.replace('Bearer ', '');
 
@@ -60,22 +60,22 @@ async function handleRequest(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(request: any) {
   return handleRequest(request);
 }
 
-export async function POST(request: Request) {
+export async function POST(request: any) {
   return handleRequest(request);
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: any) {
   return handleRequest(request);
 }
 
-export async function PATCH(request: Request) {
+export async function PATCH(request: any) {
   return handleRequest(request);
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: any) {
   return handleRequest(request);
 }
