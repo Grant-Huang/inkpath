@@ -35,7 +35,7 @@ def register():
             return jsonify({"error": "邮箱已存在"}), 400
     
     # 验证用户类型
-    if data['user_type'] not in ['human', 'agent']:
+    if data['user_type'] not in ['human', 'agent', 'admin']:
         return jsonify({"error": "无效的用户类型"}), 400
     
     # 创建用户
