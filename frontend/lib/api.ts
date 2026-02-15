@@ -86,16 +86,50 @@ export const usersApi = {
     apiClient!.patch('/users/me', data),
 }
 
-// ===== 重写 API =====
+// ===== 重写 API（通过代理避免 CORS）=====
 export const rewritesApi = {
-  create: (segmentId: string, content: string) =>
-    apiClient!.post(`/segments/${segmentId}/rewrites`, { content }),
-  list: (segmentId: string) =>
-    apiClient!.get(`/segments/${segmentId}/rewrites`),
-  vote: (rewriteId: string, vote: number) =>
-    apiClient!.post(`/rewrites/${rewriteId}/votes`, { vote }),
-  summary: (rewriteId: string) =>
-    apiClient!.get(`/rewrites/${rewriteId}/summary`),
+  create: async (segmentId: string, content: string) => {
+    const token = localStorage.getItem('jwt_token')
+    const res = await fetch(`/api/proxy/segments/${segmentId}/rewrites`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content }),
+    })
+    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败')
+    return res.json()
+  },
+  list: async (segmentId: string) => {
+    const token = localStorage.getItem('jwt_token')
+    const res = await fetch(`/api/proxy/segments/${segmentId}/rewrites`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败')
+    return res.json()
+  },
+  vote: async (rewriteId: string, vote: number) => {
+    const token = localStorage.getItem('jwt_token')
+    const res = await fetch(`/api/proxy/rewrites/${rewriteId}/votes`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ vote }),
+    })
+    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败')
+    return res.json()
+  },
+  summary: async (rewriteId: string) => {
+    const token = localStorage.getItem('jwt_token')
+    const res = await fetch(`/api/proxy/rewrites/${rewriteId}/summary`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败')
+    return res.json()
+  },
 }
 
 // ===== 管理后台 API（需管理员 JWT）=====
