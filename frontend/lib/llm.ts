@@ -116,14 +116,18 @@ export class LLMClient {
   private async generateWithGemini(prompt: string, options: GenerateOptions): Promise<string> {
     const { maxTokens, temperature } = options;
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.apiKey) {
+      headers['x-goog-api-key'] = this.config.apiKey;
+    }
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${this.config.model}:generateContent`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': this.config.apiKey
-        },
+        headers,
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
