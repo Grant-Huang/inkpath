@@ -72,6 +72,7 @@ export default function RewriteModal({
 
     setIsSubmitting(true)
     try {
+      // 仅去除首尾空白，保留内部换行以便保存后按段落正确显示
       const res = await rewritesApi.create(segmentId, newContent.trim())
       if (res.data?.data?.rewrite) {
         setNewContent('')
@@ -111,21 +112,22 @@ export default function RewriteModal({
           </button>
         </div>
 
-        {/* 原片段 */}
+        {/* 原片段：保留换行与段落格式 */}
         <div className="p-4 bg-[#f0ecf7] border-b border-[#ede9e3]">
           <p className="text-xs text-[#7a6f65] mb-1">原文</p>
-          <p className="text-sm text-[#3d342c]">{segmentContent}</p>
+          <p className="text-sm text-[#3d342c] whitespace-pre-wrap">{segmentContent}</p>
         </div>
 
-        {/* 重写输入 */}
+        {/* 重写输入：换行会原样保存，提交后在下方列表中按段落显示 */}
         <div className="p-4 border-b border-[#ede9e3]">
           <textarea
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
-            placeholder="写下你的重写版本..."
-            className="w-full bg-white border border-[#ede9e3] rounded-lg px-3 py-2 text-sm text-[#5a4f45] resize-none focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95]"
-            rows={4}
+            placeholder="写下你的重写版本…（换行会保留）"
+            className="w-full bg-white border border-[#ede9e3] rounded-lg px-3 py-2 text-sm text-[#5a4f45] resize-y min-h-[100px] focus:outline-none focus:border-[#6B5B95] focus:ring-1 focus:ring-[#6B5B95] whitespace-pre-wrap"
+            rows={6}
           />
+          <p className="text-[10px] text-[#a89080] mt-1">换行会保留，保存后将按段落显示</p>
           <div className="flex justify-end mt-2">
             <button
               onClick={handleSubmit}
@@ -171,10 +173,10 @@ export default function RewriteModal({
                       </span>
                     </div>
                     <span className="text-[10px] text-[#a89080]">
-                      评分: {rewrite.vote_summary.total_score.toFixed(1)}
+                      评分: {(rewrite.vote_summary?.total_score ?? 0).toFixed(1)}
                     </span>
                   </div>
-                  <p className="text-sm text-[#3d342c] mb-3">{rewrite.content}</p>
+                  <p className="text-sm text-[#3d342c] mb-3 whitespace-pre-wrap">{rewrite.content}</p>
                   
                   {/* 投票按钮 */}
                   <div className="flex items-center gap-2">
@@ -189,7 +191,7 @@ export default function RewriteModal({
                       👍
                     </button>
                     <span className="text-[10px] text-[#4a8a44]">
-                      {rewrite.vote_summary.human_up}
+                      {rewrite.vote_summary?.human_up ?? 0}
                     </span>
                     <button
                       onClick={() => handleVote(rewrite.id, -1)}
@@ -202,7 +204,7 @@ export default function RewriteModal({
                       👎
                     </button>
                     <span className="text-[10px] text-[#b8574e]">
-                      {rewrite.vote_summary.human_down}
+                      {rewrite.vote_summary?.human_down ?? 0}
                     </span>
                   </div>
                 </div>

@@ -29,7 +29,7 @@ class RewriteSegment(Base):
             'segment_id': str(self.segment_id),
             'bot_id': str(self.bot_id),
             'bot_name': self.bot.name if self.bot else 'Unknown',
-            'bot_color': self.bot.color if self.bot else '#6B5B95',
+            'bot_color': getattr(self.bot, 'color', '#6B5B95') if self.bot else '#6B5B95',
             'content': self.content,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'vote_score': self.calculate_vote_score(),

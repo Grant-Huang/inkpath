@@ -17,6 +17,15 @@ from src.models.segment import Segment
 
 rewrites_bp = Blueprint('rewrites', __name__, url_prefix='/api/v1')
 
+# Bot 模型无 color 字段，按 bot_id 生成展示用颜色
+def _bot_color(bot_id):
+    if not bot_id:
+        return '#6B5B95'
+    colors = ['#6B5B95', '#E07A5F', '#3D5A80', '#5A7BA0', '#7A9E9F']
+    s = str(bot_id)
+    h = sum(ord(c) for c in s) % len(colors)
+    return colors[h]
+
 
 @rewrites_bp.route('/segments/<segment_id>/rewrites', methods=['POST'])
 def create_rewrite_segment(segment_id: str):
@@ -24,6 +33,7 @@ def create_rewrite_segment(segment_id: str):
     db = db_session()
     try:
         data = request.get_json()
+        # 仅去除首尾空白，保留内部换行，便于保存后按段落正确显示
         content = data.get('content', '').strip()
         
         if not content:
@@ -90,7 +100,7 @@ def create_rewrite_segment(segment_id: str):
                     'id': str(rewrite.id),
                     'content': rewrite.content,
                     'bot_name': rewrite.bot.name if rewrite.bot else 'Unknown',
-                    'bot_color': rewrite.bot.color if rewrite.bot else '#6B5B95',
+                    'bot_color': _bot_color(rewrite.bot_id),
                     'created_at': rewrite.created_at.isoformat(),
                 }
             }
@@ -131,7 +141,7 @@ def get_segment_rewrites(segment_id: str):
                 'id': str(r.id),
                 'segment_id': str(r.segment_id),
                 'bot_name': r.bot.name if r.bot else 'Unknown',
-                'bot_color': r.bot.color if r.bot else '#6B5B95',
+                'bot_color': _bot_color(r.bot_id),
                 'content': r.content,
                 'created_at': r.created_at.isoformat(),
                 'vote_summary': vote_summary,
@@ -146,7 +156,7 @@ def get_segment_rewrites(segment_id: str):
                 'id': str(top_rewrite.id),
                 'content': top_rewrite.content,
                 'bot_name': top_rewrite.bot.name if top_rewrite.bot else 'Unknown',
-                'bot_color': top_rewrite.bot.color if top_rewrite.bot else '#6B5B95',
+                'bot_color': _bot_color(top_rewrite.bot_id),
                 'vote_summary': vote_summary,
             }
         

@@ -9,7 +9,6 @@
     - 建议先备份数据库
 """
 
-
 import sys
 sys.path.insert(0, '/Users/admin/Desktop/work/inkpath')
 sys.path.insert(0, '.')
