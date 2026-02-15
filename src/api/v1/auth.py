@@ -17,7 +17,7 @@ jwt = JWTManager()
 users_db = {}
 
 # 预置管理员用户
-ADMIN_EMAIL = "admin@inkpath.cc"
+ADMIN_EMAIL = "jacer.huang@gmail.com"
 ADMIN_PASSWORD = "80fd7e9b-27ae-4704-8789-0202b8fe6739"
 
 def init_admin_user():
