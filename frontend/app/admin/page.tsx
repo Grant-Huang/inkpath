@@ -61,7 +61,10 @@ export default function AdminPage() {
     const res = await fetch(`/api/proxy${path}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
-    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败');
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData?.error || '请求失败');
+    }
     return res.json();
   };
 
@@ -75,7 +78,10 @@ export default function AdminPage() {
       },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败');
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData?.error || '请求失败');
+    }
     return res.json();
   };
 
@@ -85,7 +91,10 @@ export default function AdminPage() {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` },
     });
-    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败');
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData?.error || '请求失败');
+    }
     return res.json();
   };
 
