@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next';
+// 统一 API 代理 - 解决 CORS 问题
 
-// 需要代理的 API 路径列表
 const PROXY_PATHS = [
   '/admin/users',
   '/admin/bots',
@@ -10,125 +9,74 @@ const PROXY_PATHS = [
   '/dashboard/stats',
 ];
 
-export async function GET(request: NextRequest) {
+async function handleRequest(request) {
   const path = request.nextUrl.pathname.replace('/api/proxy', '');
   const token = request.headers.get('Authorization')?.replace('Bearer ', '');
 
   if (!token) {
-    return NextResponse.json({ error: '缺少认证 token' }, { status: 401 });
+    return new Response(JSON.stringify({ error: '缺少认证 token' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
-  // 检查是否需要代理
-  const shouldProxy = PROXY_PATHS.some(p => path.startsWith(p));
+  const shouldProxy = PROXY_PATHS.some((p) => path.startsWith(p));
   if (!shouldProxy) {
-    return NextResponse.json({ error: '不需要代理' }, { status: 400 });
+    return new Response(JSON.stringify({ error: '不需要代理' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   try {
-    const response = await fetch(
-      `https://inkpath-api.onrender.com/api/v1${path}${request.nextUrl.search}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      }
-    );
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: data?.error?.message || `请求失败: ${response.status}` },
-        { status: response.status }
-      );
-    }
-
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('代理错误:', error);
-    return NextResponse.json({ error: '请求失败' }, { status: 500 });
-  }
-}
-
-export async function PATCH(request: NextRequest) {
-  const path = request.nextUrl.pathname.replace('/api/proxy', '');
-  const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-
-  if (!token) {
-    return NextResponse.json({ error: '缺少认证 token' }, { status: 401 });
-  }
-
-  const shouldProxy = path.startsWith('/admin/bots/') || path.startsWith('/admin/segments/');
-  if (!shouldProxy) {
-    return NextResponse.json({ error: '不需要代理' }, { status: 400 });
-  }
-
-  try {
-    const body = await request.json();
+    const url = `https://inkpath-api.onrender.com/api/v1${path}${request.nextUrl.search}`;
     
-    const response = await fetch(
-      `https://inkpath-api.onrender.com/api/v1${path}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      }
-    );
+    const response = await fetch(url, {
+      method: request.method,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: request.body ? JSON.stringify(await request.json()) : undefined,
+    });
 
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      return NextResponse.json(
-        { error: data?.error?.message || `请求失败: ${response.status}` },
-        { status: response.status }
-      );
+      return new Response(JSON.stringify({ error: data?.error?.message || `请求失败: ${response.status}` }), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    return NextResponse.json(data);
+    return new Response(JSON.stringify(data), {
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (error) {
     console.error('代理错误:', error);
-    return NextResponse.json({ error: '请求失败' }, { status: 500 });
+    return new Response(JSON.stringify({ error: '请求失败' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
 
-export async function DELETE(request: NextRequest) {
-  const path = request.nextUrl.pathname.replace('/api/proxy', '');
-  const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+export async function GET(request) {
+  return handleRequest(request);
+}
 
-  if (!token) {
-    return NextResponse.json({ error: '缺少认证 token' }, { status: 401 });
-  }
+export async function POST(request) {
+  return handleRequest(request);
+}
 
-  if (!path.startsWith('/admin/segments/')) {
-    return NextResponse.json({ error: '不需要代理' }, { status: 400 });
-  }
+export async function PUT(request) {
+  return handleRequest(request);
+}
 
-  try {
-    const response = await fetch(
-      `https://inkpath-api.onrender.com/api/v1${path}`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      }
-    );
+export async function PATCH(request) {
+  return handleRequest(request);
+}
 
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: data?.error?.message || `请求失败: ${response.status}` },
-        { status: response.status }
-      );
-    }
-
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('代理错误:', error);
-    return NextResponse.json({ error: '请求失败' }, { status: 500 });
-  }
+export async function DELETE(request) {
+  return handleRequest(request);
 }
