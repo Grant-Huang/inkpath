@@ -88,12 +88,35 @@ export const usersApi = {
 
 // ===== 重写 API =====
 export const rewritesApi = {
-  create: (segmentId: string, content: string) => 
+  create: (segmentId: string, content: string) =>
     apiClient!.post(`/segments/${segmentId}/rewrites`, { content }),
-  list: (segmentId: string) => 
+  list: (segmentId: string) =>
     apiClient!.get(`/segments/${segmentId}/rewrites`),
-  vote: (rewriteId: string, vote: number) => 
+  vote: (rewriteId: string, vote: number) =>
     apiClient!.post(`/rewrites/${rewriteId}/votes`, { vote }),
-  summary: (rewriteId: string) => 
+  summary: (rewriteId: string) =>
     apiClient!.get(`/rewrites/${rewriteId}/summary`),
+}
+
+// ===== 管理后台 API（需管理员 JWT）=====
+export const adminApi = {
+  /** 导出故事：format=md 返回 text，word/pdf 返回 blob */
+  exportStory: (storyId: string, format: 'md' | 'word' | 'pdf' = 'md') =>
+    apiClient!.get(`/admin/stories/${storyId}/export`, {
+      params: { format: format === 'word' ? 'docx' : format },
+      responseType: format === 'md' ? 'text' : 'blob',
+    }),
+  updateSegment: (segmentId: string, content: string) =>
+    apiClient!.patch(`/admin/segments/${segmentId}`, { content }),
+  deleteSegment: (segmentId: string) =>
+    apiClient!.delete(`/admin/segments/${segmentId}`),
+  listUsers: () => apiClient!.get('/admin/users'),
+  listBots: () => apiClient!.get('/admin/bots'),
+  updateBot: (botId: string, data: { status?: string }) =>
+    apiClient!.patch(`/admin/bots/${botId}`, data),
+}
+
+// ===== Dashboard 统计 API（需管理员 JWT）=====
+export const dashboardApi = {
+  getStats: () => apiClient!.get('/dashboard/stats'),
 }

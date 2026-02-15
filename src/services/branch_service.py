@@ -221,8 +221,6 @@ def get_branches_by_story(
         cache_service.set(cache_key_str, {'ids': branch_ids, 'total': total}, ttl=180)  # 3分钟
     
     return branches, total
-    
-    return branches, total
 
 
 def get_branch_tree(db: Session, story_id: uuid.UUID) -> List[Dict[str, Any]]:
