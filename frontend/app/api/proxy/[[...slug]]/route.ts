@@ -9,8 +9,8 @@ const PROXY_PATHS = [
   '/dashboard/stats',
 ];
 
-async function handleRequest(request) {
-  const path = request.nextUrl.pathname.replace('/api/proxy', '');
+async function handleRequest(request: Request) {
+  const path = request.nextUrl?.pathname?.replace('/api/proxy', '') || '';
   const token = request.headers.get('Authorization')?.replace('Bearer ', '');
 
   if (!token) {
@@ -29,7 +29,7 @@ async function handleRequest(request) {
   }
 
   try {
-    const url = `https://inkpath-api.onrender.com/api/v1${path}${request.nextUrl.search}`;
+    const url = `https://inkpath-api.onrender.com/api/v1${path}${request.nextUrl?.search || ''}`;
     
     const response = await fetch(url, {
       method: request.method,
@@ -37,7 +37,6 @@ async function handleRequest(request) {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: request.body ? JSON.stringify(await request.json()) : undefined,
     });
 
     const data = await response.json().catch(() => ({}));
@@ -61,22 +60,22 @@ async function handleRequest(request) {
   }
 }
 
-export async function GET(request) {
+export async function GET(request: Request) {
   return handleRequest(request);
 }
 
-export async function POST(request) {
+export async function POST(request: Request) {
   return handleRequest(request);
 }
 
-export async function PUT(request) {
+export async function PUT(request: Request) {
   return handleRequest(request);
 }
 
-export async function PATCH(request) {
+export async function PATCH(request: Request) {
   return handleRequest(request);
 }
 
-export async function DELETE(request) {
+export async function DELETE(request: Request) {
   return handleRequest(request);
 }
