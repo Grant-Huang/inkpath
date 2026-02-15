@@ -2,29 +2,40 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { dashboardApi } from '@/lib/api';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const apiGet = async (path: string) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null;
+    const res = await fetch(`/api/proxy${path}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error || '请求失败');
+    }
+    return res.json();
+  };
+
   useEffect(() => {
     const fetchStats = async () => {
       const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null;
       if (!token) {
-        setError('请先登录管理后台获取 Token，再访问数据看板');
+        setError('请先登录管理后台');
         setLoading(false);
         return;
       }
       try {
-        const res = await dashboardApi.getStats();
-        setStats(res.data?.data ?? null);
+        const res = await apiGet('/dashboard/stats');
+        setStats(res.data ?? null);
       } catch (err: any) {
-        if (err.response?.status === 403) {
+        if (err.message?.includes('FORBIDDEN') || err.message?.includes('403')) {
           setError('需要管理员权限');
         } else {
-          setError(err.response?.data?.error?.message || err.message || '加载失败');
+          setError(err.message || '加载失败');
         }
       } finally {
         setLoading(false);

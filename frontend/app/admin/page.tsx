@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { adminApi } from '@/lib/api';
 
 type Tab = 'export' | 'segments' | 'users';
 
@@ -25,14 +24,19 @@ export default function AdminPage() {
     setToken(t);
   }, []);
 
+  const getToken = () => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('jwt_token');
+    }
+    return null;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     setLoading(true);
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
-      const base = API_URL ? `${API_URL}/api/v1` : '/api/v1';
-      const res = await fetch(`${base}/login`, {
+      const res = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
@@ -51,26 +55,59 @@ export default function AdminPage() {
     }
   };
 
+  // 代理 API 调用
+  const apiGet = async (path: string) => {
+    const token = getToken();
+    const res = await fetch(`/api/proxy${path}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败');
+    return res.json();
+  };
+
+  const apiPatch = async (path: string, body: any) => {
+    const token = getToken();
+    const res = await fetch(`/api/proxy${path}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败');
+    return res.json();
+  };
+
+  const apiDelete = async (path: string) => {
+    const token = getToken();
+    const res = await fetch(`/api/proxy${path}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败');
+    return res.json();
+  };
+
   const loadStories = async () => {
-    const res = await storiesApi.list();
-    const list = res.data?.data?.stories || [];
-    setStories(list);
+    const data = await apiGet('/stories?limit=100');
+    setStories(data.data?.stories || []);
   };
 
   const loadUsers = async () => {
-    const res = await adminApi.listUsers();
-    setUsers(res.data?.data?.users || []);
+    const data = await apiGet('/admin/users');
+    setUsers(data.data?.users || []);
   };
 
   const loadBots = async () => {
-    const res = await adminApi.listBots();
-    setBots(res.data?.data?.bots || []);
+    const data = await apiGet('/admin/bots');
+    setBots(data.data?.bots || []);
   };
 
   const loadSegments = async () => {
     if (!segmentBranchId.trim()) return;
-    const res = await segmentsApi.list(segmentBranchId.trim());
-    setSegments(res.data?.data?.segments || []);
+    const data = await apiGet(`/branches/${segmentBranchId.trim()}/segments`);
+    setSegments(data.data?.segments || []);
   };
 
   useEffect(() => {
@@ -84,17 +121,14 @@ export default function AdminPage() {
 
   const handleExport = async (storyId: string, format: 'md' | 'word' | 'pdf') => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null;
+      const token = getToken();
       if (!token) {
         alert('请先登录');
         return;
       }
       
-      // 使用代理 API 绕过 CORS
       const response = await fetch(`/api/v1/export?story_id=${storyId}&format=${format}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -113,37 +147,36 @@ export default function AdminPage() {
       a.click();
       URL.revokeObjectURL(a.href);
     } catch (err: any) {
-      const msg = err.message || '导出失败';
-      alert(msg);
+      alert(err.message || '导出失败');
     }
   };
 
   const handleSaveSegment = async (segmentId: string) => {
     try {
-      await adminApi.updateSegment(segmentId, editContent);
+      await apiPatch(`/admin/segments/${segmentId}`, { content: editContent });
       setEditingId(null);
       loadSegments();
     } catch (err: any) {
-      alert(err.response?.data?.error?.message || err.message || '保存失败');
+      alert(err.message || '保存失败');
     }
   };
 
   const handleDeleteSegment = async (segmentId: string) => {
     if (!confirm('确定删除该片段？')) return;
     try {
-      await adminApi.deleteSegment(segmentId);
+      await apiDelete(`/admin/segments/${segmentId}`);
       loadSegments();
     } catch (err: any) {
-      alert(err.response?.data?.error?.message || err.message || '删除失败');
+      alert(err.message || '删除失败');
     }
   };
 
   const handleBotStatus = async (botId: string, status: string) => {
     try {
-      await adminApi.updateBot(botId, { status });
+      await apiPatch(`/admin/bots/${botId}`, { status });
       loadBots();
     } catch (err: any) {
-      alert(err.response?.data?.error?.message || err.message || '更新失败');
+      alert(err.message || '更新失败');
     }
   };
 
@@ -152,7 +185,10 @@ export default function AdminPage() {
       <div className="min-h-screen p-8 flex justify-center items-start">
         <div className="w-full max-w-sm bg-white rounded-xl border border-[#ede9e3] p-6 shadow-sm">
           <h1 className="text-xl font-bold text-[#2c2420] mb-4">管理后台登录</h1>
-          <p className="text-sm text-[#7a6f65] mb-4">使用管理员账号登录。若尚无管理员，请通过 API 注册：POST /api/v1/register，body 中 <code className="bg-[#f0ebe4] px-1 rounded">user_type: &quot;admin&quot;</code>。详见项目内 <code className="bg-[#f0ebe4] px-1 rounded">docs/管理员注册说明.md</code>。</p>
+          <p className="text-sm text-[#7a6f65] mb-4">
+            邮箱: jacer.huang@gmail.com<br/>
+            密码: 80fd7e9b-27ae-4704-8789-0202b8fe6739
+          </p>
           <form onSubmit={handleLogin} className="space-y-4">
             <input
               type="email"
@@ -213,24 +249,9 @@ export default function AdminPage() {
                 <li key={s.id} className="flex items-center justify-between py-2 border-b border-[#f0ebe4] last:border-0">
                   <span className="text-[#2c2420] truncate mr-2">{s.title || s.id}</span>
                   <div className="flex gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => handleExport(s.id, 'md')}
-                      className="px-3 py-1 bg-[#6B5B95] text-white rounded text-sm"
-                    >
-                      MD
-                    </button>
-                    <button
-                      onClick={() => handleExport(s.id, 'word')}
-                      className="px-3 py-1 bg-[#2563eb] text-white rounded text-sm"
-                    >
-                      Word
-                    </button>
-                    <button
-                      onClick={() => handleExport(s.id, 'pdf')}
-                      className="px-3 py-1 bg-[#dc2626] text-white rounded text-sm"
-                    >
-                      PDF
-                    </button>
+                    <button onClick={() => handleExport(s.id, 'md')} className="px-3 py-1 bg-[#6B5B95] text-white rounded text-sm">MD</button>
+                    <button onClick={() => handleExport(s.id, 'word')} className="px-3 py-1 bg-[#2563eb] text-white rounded text-sm">Word</button>
+                    <button onClick={() => handleExport(s.id, 'pdf')} className="px-3 py-1 bg-[#dc2626] text-white rounded text-sm">PDF</button>
                   </div>
                 </li>
               ))}
