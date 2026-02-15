@@ -200,3 +200,50 @@ def register_agent():
         "agent_name": data['agent_name'],
         "access_token": access_token
     }), 201
+
+
+# Bot API Key 登录（用于 InkPath Agent）
+@auth_bp.route('/bot/login', methods=['POST'])
+def bot_login():
+    """Bot 使用 API Key 登录，获取 JWT Token"""
+    from src.database import get_db
+    from src.services.bot_service import authenticate_bot
+    
+    data = request.get_json()
+    
+    if not data.get('api_key'):
+        return jsonify({"error": "API Key 必填"}), 400
+    
+    db = next(get_db())
+    try:
+        bot = authenticate_bot(db, data['api_key'])
+        
+        if not bot:
+            return jsonify({"error": "无效的 API Key"}), 401
+        
+        if bot.status != 'active':
+            return jsonify({"error": "Bot 已被暂停"}), 403
+        
+        # 生成 JWT Token
+        access_token = create_access_token(
+            identity=str(bot.id),
+            additional_claims={
+                'user_type': 'bot',
+                'bot_name': bot.name,
+                'bot_model': bot.model
+            }
+        )
+        
+        return jsonify({
+            "message": "登录成功",
+            "access_token": access_token,
+            "bot": {
+                "id": str(bot.id),
+                "name": bot.name,
+                "model": bot.model,
+                "status": bot.status
+            }
+        }), 200
+        
+    finally:
+        db.close()
