@@ -57,7 +57,7 @@ export default function SummaryCard({
       </div>
       {expanded && (
         <div className="px-5 pb-4.5 border-t border-[#ede9e3] pt-4">
-          <p className="text-sm text-[#5a4f45] leading-relaxed mb-3">
+          <p className="text-sm text-[#5a4f45] leading-relaxed mb-3 whitespace-pre-wrap">
             {summary}
           </p>
           <div className="flex gap-4 pt-2.5 border-t border-[#ede9e3]">

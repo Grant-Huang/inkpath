@@ -114,8 +114,8 @@ export default function SegmentCard({
             )}
           </div>
           
-          {/* 内容 */}
-          <p className="text-xs text-[#3d342c] leading-relaxed">
+          {/* 内容：保留换行，符合 meta「每段落一行」等格式要求 */}
+          <p className="text-xs text-[#3d342c] leading-relaxed whitespace-pre-wrap">
             {segment.content}
           </p>
           
@@ -209,7 +209,8 @@ export default function SegmentCard({
             </span>
           )}
         </div>
-        <p className="text-sm text-[#3d342c] leading-relaxed mb-2.5 max-w-[600px]">
+        {/* 保留换行，符合 meta「每段落一行、段落之间留空行」等格式要求 */}
+        <p className="text-sm text-[#3d342c] leading-relaxed mb-2.5 max-w-[600px] whitespace-pre-wrap">
           {segment.content}
         </p>
         <div className="flex items-center gap-4 flex-wrap">
