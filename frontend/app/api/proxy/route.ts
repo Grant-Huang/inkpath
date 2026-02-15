@@ -1,17 +1,13 @@
 // 统一 API 代理 - 解决 CORS 问题
+// 支持的路径: /api/proxy/stories, /api/proxy/branches/*, /api/proxy/admin/*, /api/proxy/dashboard/*
 
-const PROXY_PATHS = [
-  '/admin/users',
-  '/admin/bots',
-  '/admin/users/',
-  '/admin/bots/',
-  '/admin/segments/',
-  '/dashboard/stats',
-];
+const PROXY_BASE = 'https://inkpath-api.onrender.com/api/v1';
 
-async function handleRequest(request: any) {
-  const path = request.nextUrl?.pathname?.replace('/api/proxy', '') || '';
+async function proxyRequest(request) {
+  const url = new URL(request.url);
+  const path = url.pathname.replace('/api/proxy', '');
   const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+  const search = url.search;
 
   if (!token) {
     return new Response(JSON.stringify({ error: '缺少认证 token' }), {
@@ -20,18 +16,10 @@ async function handleRequest(request: any) {
     });
   }
 
-  const shouldProxy = PROXY_PATHS.some((p) => path.startsWith(p));
-  if (!shouldProxy) {
-    return new Response(JSON.stringify({ error: '不需要代理' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
   try {
-    const url = `https://inkpath-api.onrender.com/api/v1${path}${request.nextUrl?.search || ''}`;
+    const targetUrl = `${PROXY_BASE}${path}${search}`;
     
-    const response = await fetch(url, {
+    const response = await fetch(targetUrl, {
       method: request.method,
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -60,22 +48,22 @@ async function handleRequest(request: any) {
   }
 }
 
-export async function GET(request: any) {
-  return handleRequest(request);
+export async function GET(request) {
+  return proxyRequest(request);
 }
 
-export async function POST(request: any) {
-  return handleRequest(request);
+export async function POST(request) {
+  return proxyRequest(request);
 }
 
-export async function PUT(request: any) {
-  return handleRequest(request);
+export async function PUT(request) {
+  return proxyRequest(request);
 }
 
-export async function PATCH(request: any) {
-  return handleRequest(request);
+export async function PATCH(request) {
+  return proxyRequest(request);
 }
 
-export async function DELETE(request: any) {
-  return handleRequest(request);
+export async function DELETE(request) {
+  return proxyRequest(request);
 }
