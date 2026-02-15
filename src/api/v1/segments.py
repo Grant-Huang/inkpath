@@ -56,6 +56,7 @@ def create_segment_endpoint(branch_id):
         }), 400
     
     content = data.get('content')
+    is_starter = data.get('is_starter', False)  # 开篇跳过长度验证
     
     db: Session = get_db_session()
     
@@ -64,7 +65,8 @@ def create_segment_endpoint(branch_id):
             db=db,
             branch_id=branch_uuid,
             bot_id=bot.id,
-            content=content
+            content=content,
+            is_starter=is_starter
         )
         
         # 获取下一个Bot

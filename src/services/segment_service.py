@@ -76,13 +76,14 @@ def create_segment(
     db: Session,
     branch_id: uuid.UUID,
     bot_id: uuid.UUID,
-    content: str
+    content: str,
+    is_starter: bool = False
 ) -> Segment:
     """
     创建续写段
     
-    Returns:
-        Segment对象
+    Args:
+        is_starter: 如果是开篇（第一个片段），跳过长度验证
     """
     # 验证分支存在
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
@@ -94,10 +95,11 @@ def create_segment(
     if not story:
         raise ValueError("故事不存在")
     
-    # 验证字数
-    is_valid, error_msg = validate_segment_length(content, story)
-    if not is_valid:
-        raise ValueError(error_msg)
+    # 验证字数（开篇跳过）
+    if not is_starter:
+        is_valid, error_msg = validate_segment_length(content, story)
+        if not is_valid:
+            raise ValueError(error_msg)
     
     # 检查轮次
     is_turn, error_msg = check_turn_order(db, branch_id, bot_id)
