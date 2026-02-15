@@ -21,6 +21,14 @@ interface Story {
   current_summary: string;
 }
 
+function LoadingState() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-gray-500">加载中...</div>
+    </div>
+  );
+}
+
 export default function PublishPage() {
   const router = useRouter();
   const [stories, setStories] = useState<Story[]>([]);
@@ -28,8 +36,12 @@ export default function PublishPage() {
   const [selectedStory, setSelectedStory] = useState<string>('');
   const [isPublishing, setIsPublishing] = useState(false);
   const [activeTab, setActiveTab] = useState<'publish' | 'history'>('publish');
+  const [isClient, setIsClient] = useState(false);
+  const [username, setUsername] = useState('用户');
 
   useEffect(() => {
+    setIsClient(true);
+    setUsername(localStorage.getItem('inkpath_username') || '用户');
     const token = localStorage.getItem('inkpath_token');
     if (!token) {
       router.push('/login');
@@ -40,7 +52,6 @@ export default function PublishPage() {
 
   const fetchData = async () => {
     try {
-      // 获取用户故事
       const storiesRes = await fetch('/api/v1/stories?limit=100', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('inkpath_token')}` }
       });
@@ -48,9 +59,6 @@ export default function PublishPage() {
         const data = await storiesRes.json();
         setStories(data.data?.stories || []);
       }
-
-      // 获取发布历史（如果有API）
-      // setPublishHistory([...]);
     } catch (error) {
       console.error('获取数据失败:', error);
     }
@@ -75,7 +83,6 @@ export default function PublishPage() {
       if (response.ok) {
         alert('发布成功！');
         
-        // 记录发布历史
         const newRecord: PublishRecord = {
           id: Date.now().toString(),
           story_id: selectedStory,
@@ -88,7 +95,6 @@ export default function PublishPage() {
         };
         setPublishHistory([newRecord, ...publishHistory]);
         
-        // 刷新故事列表
         fetchData();
       } else {
         throw new Error('发布失败');
@@ -127,9 +133,12 @@ export default function PublishPage() {
     return new Date(dateStr).toLocaleString('zh-CN');
   };
 
+  if (!isClient) {
+    return <LoadingState />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 顶部导航 */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -142,13 +151,12 @@ export default function PublishPage() {
             <h1 className="text-xl font-bold text-gray-900">发布管理</h1>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-gray-600">{localStorage.getItem('inkpath_username') || '用户'}</span>
+            <span className="text-gray-600">{username}</span>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Tab 切换 */}
         <div className="flex border-b border-gray-200 mb-6">
           <button
             onClick={() => setActiveTab('publish')}
@@ -172,10 +180,8 @@ export default function PublishPage() {
           </button>
         </div>
 
-        {/* 发布故事 Tab */}
         {activeTab === 'publish' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* 可发布的故事 */}
             <div className="lg:col-span-2">
               <div className="bg-white rounded-lg shadow-sm">
                 <div className="p-4 border-b">
@@ -239,7 +245,6 @@ export default function PublishPage() {
               </div>
             </div>
 
-            {/* 发布面板 */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
                 <h2 className="font-medium text-gray-900 mb-4">发布设置</h2>
@@ -293,7 +298,6 @@ export default function PublishPage() {
           </div>
         )}
 
-        {/* 发布历史 Tab */}
         {activeTab === 'history' && (
           <div className="bg-white rounded-lg shadow-sm">
             <div className="p-4 border-b flex items-center justify-between">
