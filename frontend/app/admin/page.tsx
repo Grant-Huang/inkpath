@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { storiesApi, branchesApi, segmentsApi, adminApi } from '@/lib/api';
+import { adminApi } from '@/lib/api';
 
 type Tab = 'export' | 'segments' | 'users';
 
@@ -84,24 +84,37 @@ export default function AdminPage() {
 
   const handleExport = async (storyId: string, format: 'md' | 'word' | 'pdf') => {
     try {
-      const res = await adminApi.exportStory(storyId, format);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null;
+      if (!token) {
+        alert('请先登录');
+        return;
+      }
+      
+      // 使用代理 API 绕过 CORS
+      const response = await fetch(`/api/v1/export?story_id=${storyId}&format=${format}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error?.error || `导出失败: ${response.status}`);
+      }
+
       const story = stories.find((s: any) => s.id === storyId);
       const baseName = (story?.title || storyId).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 50);
       const ext = format === 'md' ? '.md' : format === 'word' ? '.docx' : '.pdf';
-      let blob: Blob;
-      if (format === 'md') {
-        blob = new Blob([res.data as string], { type: 'text/markdown;charset=utf-8' });
-      } else {
-        blob = res.data as Blob;
-      }
+      const blob = await response.blob();
+      
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = baseName + ext;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch (err: any) {
-      const msg = err.response?.data?.error?.message || err.message || '导出失败';
-      alert(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      const msg = err.message || '导出失败';
+      alert(msg);
     }
   };
 
