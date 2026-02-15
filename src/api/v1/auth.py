@@ -16,6 +16,28 @@ jwt = JWTManager()
 # 存储（生产环境应使用数据库）
 users_db = {}
 
+# 预置管理员用户
+ADMIN_EMAIL = "admin@inkpath.cc"
+ADMIN_PASSWORD = "80fd7e9b-27ae-4704-8789-0202b8fe6739"
+
+def init_admin_user():
+    """初始化管理员用户"""
+    global users_db
+    admin_id = "admin-00000000-0000-0000-0000-000000000000"
+    users_db[admin_id] = {
+        'id': admin_id,
+        'username': 'admin',
+        'email': ADMIN_EMAIL,
+        'password_hash': generate_password_hash(ADMIN_PASSWORD),
+        'user_type': 'admin',
+        'created_at': datetime.utcnow().isoformat(),
+        'updated_at': datetime.utcnow().isoformat()
+    }
+    print(f"✅ 管理员用户已初始化: {ADMIN_EMAIL}")
+
+# 初始化管理员
+init_admin_user()
+
 @auth_bp.route('/register', methods=['POST'])
 def register():
     """用户注册"""
