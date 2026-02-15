@@ -255,9 +255,6 @@ export default function ReadingView({
             <h1 className="text-2xl serif font-bold text-[#2c2420] mb-1 tracking-tight">
               {story?.title || '故事标题'}
             </h1>
-            <p className="text-sm text-[#7a6f65]">
-              {story?.background || '故事背景'}
-            </p>
           </div>
 
           {/* 摘要 */}

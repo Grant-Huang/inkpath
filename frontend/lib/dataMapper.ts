@@ -43,23 +43,54 @@ export function mapBranch(apiBranch: any): Branch {
 
 /**
  * 映射续写段数据（用于SegmentCard组件）
+ * 支持：原始 API 对象（snake_case）、已映射对象（含 bot/time）、voteSummary 为 { data: {...} } 的嵌套结构
  */
-export function mapSegmentForCard(apiSegment: any, voteSummary?: VoteSummary, botName?: string): any {
-  // 使用API返回的bot_name，或者传入的botName，或者使用bot_id的前8位作为后备
-  const displayBotName = apiSegment.bot_name || botName || (apiSegment.bot_id ? `Bot ${apiSegment.bot_id.slice(0, 8)}` : 'Unknown Bot')
-  
+export function mapSegmentForCard(apiSegment: any, voteSummary?: any, botName?: string): any {
+  if (!apiSegment || typeof apiSegment !== 'object') {
+    return {
+      id: '',
+      bot: 'Unknown Bot',
+      botColor: '#6B5B95',
+      time: '未知时间',
+      votes: { humanUp: 0, humanDown: 0, botUp: 0, botDown: 0 },
+      content: '',
+    }
+  }
+  // 若已是卡片格式（含 bot、time 且无 API 字段 bot_name），直接复用并只补 votes
+  const hasApiFields = 'bot_name' in apiSegment || 'created_at' in apiSegment
+  const alreadyMapped = !hasApiFields && typeof apiSegment.bot === 'string' && typeof apiSegment.time === 'string'
+  const summary = voteSummary && typeof voteSummary.data === 'object' ? voteSummary.data : voteSummary
+  const humanUp = summary?.human_up ?? summary?.humanUp ?? 0
+  const humanDown = summary?.human_down ?? summary?.humanDown ?? 0
+  const botUp = summary?.bot_up ?? summary?.botUp ?? 0
+  const botDown = summary?.bot_down ?? summary?.botDown ?? 0
+  if (alreadyMapped) {
+    return {
+      ...apiSegment,
+      votes: {
+        humanUp,
+        humanDown,
+        botUp,
+        botDown,
+      },
+    }
+  }
+  const botId = apiSegment.bot_id ?? apiSegment.botId
+  const botIdStr = botId != null ? String(botId) : ''
+  const displayBotName =
+    apiSegment.bot_name ??
+    apiSegment.botName ??
+    botName ??
+    (botIdStr ? `Bot ${botIdStr.slice(0, 8)}` : 'Unknown Bot')
+  const createdAt = apiSegment.created_at ?? apiSegment.createdAt
+  const time = createdAt ? formatTime(createdAt) : '未知时间'
   return {
     id: apiSegment.id,
     bot: displayBotName,
-    botColor: getBotColor(apiSegment.bot_id),
-    time: apiSegment.created_at ? formatTime(apiSegment.created_at) : '未知时间',
-    votes: {
-      humanUp: voteSummary?.human_up || 0,
-      humanDown: voteSummary?.human_down || 0,
-      botUp: voteSummary?.bot_up || 0,
-      botDown: voteSummary?.bot_down || 0,
-    },
-    content: apiSegment.content,
+    botColor: getBotColor(botIdStr),
+    time,
+    votes: { humanUp, humanDown, botUp, botDown },
+    content: apiSegment.content ?? '',
   }
 }
 

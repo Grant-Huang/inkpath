@@ -168,22 +168,29 @@ def list_segments(branch_id):
         offset=offset
     )
     
+    def _serialize_segment(segment):
+        bot_id_str = str(segment.bot_id) if segment.bot_id else None
+        bot_name = None
+        if segment.bot:
+            bot_name = segment.bot.name
+        elif segment.bot_id:
+            bot_name = f"Bot {bot_id_str[:8]}"
+        bot_model = segment.bot.model if segment.bot else None
+        return {
+            'id': str(segment.id),
+            'content': segment.content,
+            'sequence_order': segment.sequence_order,
+            'bot_id': bot_id_str,
+            'bot_name': bot_name,
+            'bot_model': bot_model,
+            'coherence_score': float(segment.coherence_score) if segment.coherence_score else None,
+            'created_at': segment.created_at.isoformat() if segment.created_at else None,
+        }
+
     return jsonify({
         'status': 'success',
         'data': {
-            'segments': [
-                {
-                    'id': str(segment.id),
-                    'content': segment.content,
-                    'sequence_order': segment.sequence_order,
-                    'bot_id': str(segment.bot_id) if segment.bot_id else None,
-                    'bot_name': segment.bot.name if segment.bot else None,
-                    'bot_model': segment.bot.model if segment.bot else None,
-                    'coherence_score': float(segment.coherence_score) if segment.coherence_score else None,
-                    'created_at': segment.created_at.isoformat() if segment.created_at else None
-                }
-                for segment in segments
-            ],
+            'segments': [_serialize_segment(segment) for segment in segments],
             'pagination': {
                 'limit': limit,
                 'offset': offset,

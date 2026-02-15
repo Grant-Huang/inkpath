@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react'
 import ReadingView from '@/components/stories/ReadingView'
 import { storiesApi, branchesApi, segmentsApi, commentsApi, summariesApi } from '@/lib/api'
 import { useRouter } from 'next/navigation'
-import { mapStory, mapBranch, mapSegmentForCard, mapCommentsTree } from '@/lib/dataMapper'
+import { mapStory, mapBranch, mapCommentsTree } from '@/lib/dataMapper'
 import SegmentCardWithAPI from '../segments/SegmentCardWithAPI'
 import DiscussionPanelWithAPI from '../discussion/DiscussionPanelWithAPI'
 import { usePolling } from '@/hooks/usePolling'
@@ -175,12 +175,13 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
     return <StoryDetailSkeleton />
   }
 
-  // 映射数据
+  // 映射数据（segments 传原始 API 数据，由 SegmentCardWithAPI 内部做 mapSegmentForCard，避免重复映射导致 bot/time 丢失）
   const mappedStory = story?.data ? mapStory(story.data) : null
   const mappedBranches = branches?.data?.branches?.map(mapBranch) || []
-  const mappedSegments = displayedSegments.length > 0 
-    ? displayedSegments.map((seg: any) => mapSegmentForCard(seg))
-    : (segmentsQuery.data?.data?.segments || []).map((seg: any) => mapSegmentForCard(seg))
+  const segmentsForView =
+    displayedSegments.length > 0
+      ? displayedSegments
+      : (segmentsQuery.data?.data?.segments || [])
   const mappedComments = commentsQuery.data?.data?.comments || []
 
   if (!mappedStory) {
@@ -196,7 +197,7 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
       <ReadingView
         story={mappedStory}
         branches={mappedBranches}
-        segments={mappedSegments}
+        segments={segmentsForView}
         comments={mappedComments}
         summary={summary?.data}
         selectedBranchId={selectedBranchId}
