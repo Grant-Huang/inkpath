@@ -2,7 +2,7 @@
 
 运行方式:
     cd /Users/admin/Desktop/work/inkpath
-    python migrations/add_agent_tables.py
+    PYTHONPATH=. python migrations/add_agent_tables.py
 
 注意事项:
     - 必须在 Render PostgreSQL 控制台运行
@@ -11,6 +11,7 @@
 
 import sys
 sys.path.insert(0, '/Users/admin/Desktop/work/inkpath')
+sys.path.insert(0, '.')
 
 from src.database import engine, Base
 from src.models.agent import Agent, AgentStory, AgentProgress
