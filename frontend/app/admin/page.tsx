@@ -20,6 +20,12 @@ export default function AdminPage() {
   const [segments, setSegments] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  // 日志相关状态
+  const [logs, setLogs] = useState<any[]>([]);
+  const [logStats, setLogStats] = useState<any>(null);
+  const [logFilter, setLogFilter] = useState('');
+  const [logType, setLogType] = useState('all');
+  const [logLoading, setLogLoading] = useState(false);
 
   useEffect(() => {
     const t = localStorage.getItem('jwt_token');
@@ -124,6 +130,26 @@ export default function AdminPage() {
       setBots(data.data?.bots || []);
     } catch (err: any) {
       alert(err.message || '加载失败');
+    }
+  };
+
+  const loadLogs = async () => {
+    setLogLoading(true);
+    try {
+      let path = '/logs?limit=100';
+      if (logFilter) path += `&story_id=${logFilter}`;
+      if (logType !== 'all') path += `&author_type=${logType}`;
+      
+      const data = await apiGet(path);
+      setLogs(data.data?.logs || []);
+      
+      // 加载统计数据
+      const statsData = await apiGet('/logs/stats');
+      setLogStats(statsData.data);
+    } catch (err: any) {
+      console.error('加载日志失败:', err);
+    } finally {
+      setLogLoading(false);
     }
   };
 
@@ -375,11 +401,85 @@ export default function AdminPage() {
 
         {tab === 'logs' && (
           <div className="bg-white rounded-xl border border-[#ede9e3] p-6">
-            <h2 className="text-lg font-semibold text-[#2c2420] mb-4">📝 续写日志</h2>
-            <p className="text-sm text-[#7a6f65] mb-4">查看所有片段创作历史记录</p>
-            <a href="/admin/logs" className="inline-block px-4 py-2 bg-[#6B5B95] text-white rounded-lg text-sm hover:bg-[#584a7e]">
-              打开日志页面 →
-            </a>
+            <h2 className="text-lg font-semibold text-[#2c2420] mb-4">📋 日志</h2>
+            
+            {/* 筛选 */}
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                placeholder="故事 ID 过滤（留空显示全部）"
+                value={logFilter}
+                onChange={(e) => setLogFilter(e.target.value)}
+                className="flex-1 px-3 py-2 border border-[#ede9e3] rounded-lg text-sm"
+              />
+              <select
+                value={logType}
+                onChange={(e) => setLogType(e.target.value)}
+                className="px-3 py-2 border border-[#ede9e3] rounded-lg text-sm"
+              >
+                <option value="all">全部</option>
+                <option value="human">👤 人类</option>
+                <option value="bot">🤖 Bot</option>
+              </select>
+              <button onClick={loadLogs} className="px-4 py-2 bg-[#6B5B95] text-white rounded-lg text-sm">搜索</button>
+            </div>
+            
+            {/* 统计 */}
+            {logStats && (
+              <div className="flex gap-4 mb-4 text-sm">
+                <span>👤 人类: {logStats.total?.human || 0}</span>
+                <span>🤖 Bot: {logStats.total?.bot || 0}</span>
+                <span>📊 总计: {logStats.total?.all || 0}</span>
+              </div>
+            )}
+            
+            {/* 日志列表 */}
+            <div className="max-h-[600px] overflow-y-auto">
+              {logLoading ? (
+                <p className="text-[#7a6f65] text-center py-4">加载中...</p>
+              ) : logs.length === 0 ? (
+                <p className="text-[#7a6f65] text-center py-4">暂无日志</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-[#faf8f5] sticky top-0">
+                    <tr>
+                      <th className="text-left px-3 py-2">时间</th>
+                      <th className="text-left px-3 py-2">作者</th>
+                      <th className="text-left px-3 py-2">故事</th>
+                      <th className="text-left px-3 py-2">类型</th>
+                      <th className="text-right px-3 py-2">字数</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.map((log: any) => (
+                      <tr key={log.id} className="border-b border-[#ede9e3] hover:bg-[#faf8f5]">
+                        <td className="px-3 py-2 text-[#7a6f65]">
+                          {log.created_at ? new Date(log.created_at).toLocaleString('zh-CN') : '-'}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            log.author_type === 'bot' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {log.author_type === 'bot' ? '🤖' : '👤'} {log.author_name}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-[#6B5B95] truncate max-w-[200px]">
+                          <a href={`/stories/${log.story_id}`} target="_blank" className="hover:underline">
+                            {log.story_title}
+                          </a>
+                        </td>
+                        <td className="px-3 py-2">
+                          {log.is_continuation === 'new' && <span className="text-green-600">新分支</span>}
+                          {log.is_continuation === 'continuation' && <span className="text-blue-600">续写</span>}
+                          {log.is_continuation === 'fork' && <span className="text-orange-600">分支</span>}
+                        </td>
+                        <td className="px-3 py-2 text-right text-[#7a6f65]">{log.content_length}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         )}
       </div>
