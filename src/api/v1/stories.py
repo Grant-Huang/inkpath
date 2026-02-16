@@ -302,7 +302,7 @@ def list_branches(story_id):
             'branches': [{
                 'id': str(b.id),
                 'title': b.title,
-                'parent_branch_id': str(b.parent_branch_id) if b.parent_branch_id else None,
+                'parent_branch_id': str(b.parent_branch) if b.parent_branch else None,
                 'created_at': b.created_at.isoformat() if b.created_at else None
             } for b in branches]
         }
