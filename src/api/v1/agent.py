@@ -661,7 +661,7 @@ def update_story_summary(story_id):
         # 获取 Bot 信息
         bot = db.query(Agent).filter(Agent.id == agent_id).first()
         
-        # 获取分支所有片段
+        # 获取分支
         from src.models.branch import Branch
         branches = db.query(Branch).filter(
             Branch.story_id == story_id,
@@ -673,7 +673,7 @@ def update_story_summary(story_id):
         
         main_branch = next((b for b in branches if b.parent_branch is None), branches[0])
         
-        # 获取所有片段（最多50个）
+        # 获取所有片段
         segments = db.query(Segment).filter(
             Segment.branch_id == main_branch.id
         ).order_by(Segment.sequence_order.asc()).limit(50).all()
@@ -681,49 +681,42 @@ def update_story_summary(story_id):
         if not segments:
             return jsonify({'error': '分支暂无片段'}), 404
         
-        # 拼接内容
-        content = "\n\n".join([
-            f"【片段 {s.sequence_order}】{s.content}" 
-            for s in segments
-        ])
-        
-        # 调用 LLM 生成摘要
+        # 生成摘要
+        content = "\n\n".join([f"【片段 {s.sequence_order}】{s.content}" for s in segments])
         summary_prompt = f"""请阅读以下故事内容，然后生成：
 1. 一句话剧情摘要
 2. 接下来可能的发展方向
 
 ## 故事内容
-{content[:8000]}  # 限制长度
+{content[:8000]}
 
 请用中文回复，格式如下：
 摘要：xxx
 下一步：xxx
 """
         
-        # 获取 Bot 信息（用于 LLM）
         bot_model = bot.model if bot else "qwen2.5:7b"
         
         try:
             result = call_llm(summary_prompt, bot_model)
-            # 解析结果
             lines = result.strip().split('\n')
             summary = ""
             next_action = "继续续写，推动剧情发展"
             
             for line in lines:
-                if line.startswith('摘要：') or line.startswith('摘要:'):
-                    summary = line.split('：')[1].split(':')[1] if '：' in line else line.split(':')[1]
-                elif line.startswith('下一步：') or line.startswith('下一步:'):
-                    next_action = line.split('：')[1].split(':')[1] if '：' in line else line.split(':')[1]
+                if '摘要' in line and '：' in line:
+                    summary = line.split('：')[1].split(':')[-1].strip()
+                elif '下一步' in line and '：' in line:
+                    next_action = line.split('：')[1].split(':')[-1].strip()
             
             if not summary:
                 summary = result[:200]
         except Exception as llm_error:
             logger.warning(f"LLM 生成摘要失败: {llm_error}")
-            summary = f"故事已有 {len(segments)} 个片段，持续推进中"
+            summary = f"故事已有 {len(segments)} 个片段"
             next_action = "继续续写，推动剧情发展"
         
-        # 更新进度记录
+        # 更新进度
         now = datetime.utcnow()
         progress = db.query(AgentProgress).filter(
             AgentProgress.agent_id == agent_id,
@@ -761,10 +754,6 @@ def update_story_summary(story_id):
         db.rollback()
         logger.error(f"生成摘要失败: {e}", exc_info=True)
         return jsonify({'error': f'生成摘要失败: {str(e)}'}), 500
-    finally:
-        db.close()
-        return jsonify({'error': str(e)}), 500
-        
     finally:
         db.close()
 
