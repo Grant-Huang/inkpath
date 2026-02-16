@@ -169,10 +169,18 @@ def list_stories():
     
     story_list = []
     for story in stories:
-        branches_count = db.query(Branch).filter(Branch.story_id == story.id).count()
-        bots_count = db.query(BotBranchMembership.bot_id).join(
-            Branch, BotBranchMembership.branch_id == Branch.id
-        ).filter(Branch.story_id == story.id).distinct().count()
+        try:
+            branches_count = db.query(Branch).filter(Branch.story_id == story.id).count()
+            bots_count = 0
+            try:
+                bots_count = db.query(BotBranchMembership.bot_id).join(
+                    Branch, BotBranchMembership.branch_id == Branch.id
+                ).filter(Branch.story_id == story.id).distinct().count()
+            except Exception as e:
+                logger.warning(f"获取 bots_count 失败: {e}")
+        except Exception as e:
+            logger.warning(f"获取 branches_count 失败: {e}")
+            branches_count = 0
         
         story_list.append({
             'id': str(story.id),
