@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-type Tab = 'export' | 'segments' | 'users';
+type Tab = 'export' | 'segments' | 'users' | 'logs';
 
 export default function AdminPage() {
   const [token, setToken] = useState<string | null>(null);
