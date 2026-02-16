@@ -283,3 +283,126 @@ def update_bot(bot_id):
             'status': bot.status,
         },
     }), 200
+
+
+# ========== Bot 分配故事 ==========
+@admin_bp.route('/bots/<bot_id>/assign', methods=['POST'])
+@jwt_required()
+@admin_required
+def assign_story_to_bot(bot_id):
+    """将故事分配给 Bot
+    body: { "story_id": "uuid", "auto_continue": true/false }
+    """
+    try:
+        bot_uuid = uuid.UUID(bot_id)
+    except ValueError:
+        return jsonify({'status': 'error', 'error': {'code': 'VALIDATION_ERROR', 'message': '无效的Bot ID'}}), 400
+
+    data = request.get_json() or {}
+    story_id = data.get('story_id')
+    if not story_id:
+        return jsonify({'status': 'error', 'error': {'code': 'VALIDATION_ERROR', 'message': '缺少 story_id'}}), 400
+    
+    try:
+        story_uuid = uuid.UUID(story_id)
+    except ValueError:
+        return jsonify({'status': 'error', 'error': {'code': 'VALIDATION_ERROR', 'message': '无效的 story_id'}}), 400
+
+    db: Session = get_db_session()
+    
+    from src.models.bot import Bot
+    from src.models.agent import AgentStory
+    
+    # 验证 Bot 存在
+    bot = db.query(Bot).filter(Bot.id == bot_uuid).first()
+    if not bot:
+        return jsonify({'status': 'error', 'error': {'code': 'NOT_FOUND', 'message': 'Bot不存在'}}), 404
+    
+    # 验证故事存在
+    from src.models.story import Story
+    story = db.query(Story).filter(Story.id == story_uuid).first()
+    if not story:
+        return jsonify({'status': 'error', 'error': {'code': 'NOT_FOUND', 'message': '故事不存在'}}), 404
+    
+    # 检查是否已分配
+    existing = db.query(AgentStory).filter(
+        AgentStory.agent_id == bot_uuid,
+        AgentStory.story_id == story_uuid
+    ).first()
+    
+    if existing:
+        # 更新设置
+        existing.auto_continue = data.get('auto_continue', True)
+        db.commit()
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'bot_id': str(bot_id),
+                'story_id': str(story_id),
+                'auto_continue': existing.auto_continue,
+                'message': '已更新分配'
+            }
+        }), 200
+    
+    # 创建分配记录
+    auto_continue = data.get('auto_continue', True)
+    assignment = AgentStory(
+        agent_id=bot_uuid,
+        story_id=story_uuid,
+        auto_continue=auto_continue
+    )
+    db.add(assignment)
+    db.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'data': {
+            'bot_id': str(bot_id),
+            'story_id': str(story_id),
+            'auto_continue': auto_continue,
+            'message': '分配成功'
+        }
+    }), 201
+
+
+@admin_bp.route('/bots/<bot_id>/assignments', methods=['GET'])
+@jwt_required()
+@admin_required
+def get_bot_assignments(bot_id):
+    """获取 Bot 分配的所有故事"""
+    try:
+        bot_uuid = uuid.UUID(bot_id)
+    except ValueError:
+        return jsonify({'status': 'error', 'error': {'code': 'VALIDATION_ERROR', 'message': '无效的Bot ID'}}), 400
+
+    db: Session = get_db_session()
+    from src.models.agent import AgentStory
+    from src.models.story import Story
+    
+    assignments = db.query(AgentStory).filter(AgentStory.agent_id == bot_uuid).all()
+    
+    from src.models.branch import Branch
+    from sqlalchemy import func
+    
+    result = []
+    for a in assignments:
+        story = db.query(Story).filter(Story.id == a.story_id).first()
+        branches_count = db.query(func.count(Branch.id)).filter(
+            Branch.story_id == a.story_id,
+            Branch.status == 'active'
+        ).scalar() or 0
+        
+        result.append({
+            'story_id': str(a.story_id),
+            'story_title': story.title if story else '未知',
+            'auto_continue': a.auto_continue,
+            'assigned_at': a.created_at.isoformat() if a.created_at else None
+        })
+    
+    return jsonify({
+        'status': 'success',
+        'data': {
+            'bot_id': str(bot_id),
+            'assignments': result
+        }
+    }), 200
