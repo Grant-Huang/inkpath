@@ -1,16 +1,22 @@
 # Agent API Routes for InkPath
 # 提供信息抓取接口供 Agent 客户端使用
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
 import uuid
 import bcrypt
+import requests
+import logging
 
 from src.database import get_db
 from src.models.agent import Agent, AgentStory, AgentProgress
+from src.models.segment import Segment
 
 agent_bp = Blueprint('agent', __name__)
+
+logger = logging.getLogger(__name__)
 
 
 # =====================================================
@@ -25,6 +31,59 @@ def hash_api_key(api_key: str) -> str:
 def verify_api_key(api_key: str, hashed: str) -> bool:
     """验证 API Key"""
     return bcrypt.checkpw(api_key.encode('utf-8'), hashed.encode('utf-8'))
+
+
+def call_llm(prompt: str, bot_model: str = "qwen2.5:7b") -> str:
+    """
+    调用 LLM 生成续写内容
+    
+    支持本地 Ollama (Qwen) 或 OpenAI 兼容 API
+    """
+    # 优先使用本地 Ollama
+    ollama_url = current_app.config.get('OLLAMA_URL', 'http://localhost:11434/v1')
+    
+    try:
+        # 尝试本地 Ollama
+        response = requests.post(
+            f"{ollama_url}/chat/completions",
+            json={
+                "model": bot_model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.7,
+                "max_tokens": 1000
+            },
+            timeout=120
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return data["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        logger.warning(f"Ollama 调用失败: {e}")
+    
+    # 如果本地失败，尝试 OpenAI 兼容 API
+    openai_key = current_app.config.get('OPENAI_API_KEY', '')
+    openai_url = current_app.config.get('OPENAI_API_URL', 'https://api.openai.com/v1')
+    
+    if openai_key:
+        try:
+            response = requests.post(
+                f"{openai_url}/chat/completions",
+                headers={"Authorization": f"Bearer {openai_key}"},
+                json={
+                    "model": "gpt-4o",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.7,
+                    "max_tokens": 1000
+                },
+                timeout=120
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return data["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            logger.warning(f"OpenAI 调用失败: {e}")
+    
+    raise Exception("无法调用 LLM，请检查配置")
 
 
 # =====================================================
@@ -398,28 +457,19 @@ def get_agent_info():
 @agent_bp.route('/stories/<story_id>/continue', methods=['POST'])
 @jwt_required()
 def continue_story(story_id):
-    """Agent 手动续写故事"""
-    agent_id = get_jwt_identity()
+    """
+    Agent 续写故事
     
-    # TODO: 实现续写逻辑
-    # 1. 获取故事最新片段
-    # 2. 调用 LLM 生成续写
-    # 3. 提交新片段
-    # 4. 更新进度摘要
-    
-    return jsonify({
-        "message": "续写完成",
-        "story_id": story_id,
-        "agent_id": agent_id
-    }), 200
-
-
-@agent_bp.route('/stories/<story_id>/summarize', methods=['POST'])
-@jwt_required()
-def update_story_summary(story_id):
-    """更新故事进展摘要"""
+    流程：
+    1. 验证权限（必须是分配给此 Agent 的故事）
+    2. 获取分支最新片段
+    3. 调用 LLM 生成续写
+    4. 提交新片段
+    5. 记录日志
+    6. 更新进度摘要
+    """
     agent_id = get_jwt_identity()
-    db = next(get_db())
+    db: Session = get_db()
     
     try:
         # 验证权限
@@ -431,12 +481,250 @@ def update_story_summary(story_id):
         if not agent_story:
             return jsonify({'error': '无权访问此故事'}), 403
         
-        # TODO: 获取故事片段，生成摘要
+        # 获取 Bot 信息
+        bot = db.query(Agent).filter(Agent.id == agent_id).first()
+        if not bot:
+            return jsonify({'error': 'Bot 不存在'}), 404
         
-        summary = f"已更新"
-        next_action = "继续续写，推动剧情发展"
+        # 获取故事分支
+        from src.models.branch import Branch
+        branches = db.query(Branch).filter(
+            Branch.story_id == story_id,
+            Branch.status == 'active'
+        ).order_by(Branch.created_at.desc()).all()
+        
+        if not branches:
+            return jsonify({'error': '故事暂无分支'}), 404
+        
+        # 使用主分支（parent_branch 为空）
+        main_branch = next((b for b in branches if b.parent_branch is None), branches[0])
+        
+        # 获取最新片段
+        latest_segment = db.query(Segment).filter(
+            Segment.branch_id == main_branch.id
+        ).order_by(Segment.sequence_order.desc()).first()
+        
+        if not latest_segment:
+            return jsonify({'error': '分支暂无片段'}), 404
+        
+        # 获取前文上下文（最近5个片段）
+        context_segments = db.query(Segment).filter(
+            Segment.branch_id == main_branch.id
+        ).order_by(Segment.sequence_order.desc()).limit(5).all()
+        context_segments.reverse()
+        
+        context = "\n\n".join([
+            f"【片段 {s.sequence_order}】{s.content}" 
+            for s in context_segments
+        ])
+        
+        # 调用 LLM 生成续写
+        prompt = f"""你是一个专业作家，为协作故事平台续写。
+
+## 前文上下文
+{context}
+
+## 最新片段
+【片段 {latest_segment.sequence_order}】{latest_segment.content}
+
+## 要求
+- 延续故事风格和节奏
+- 字数 200-400 字
+- 直接输出内容，不要前缀说明
+- 不要重复前文内容
+"""
+        
+        try:
+            content = call_llm(prompt, bot.model)
+        except Exception as llm_error:
+            logger.error(f"LLM 调用失败: {llm_error}")
+            return jsonify({'error': f'LLM 调用失败: {str(llm_error)}'}), 500
+        
+        # 提交新片段
+        from src.services.segment_service import create_segment, log_segment_creation
+        
+        new_segment = create_segment(
+            db=db,
+            branch_id=main_branch.id,
+            bot_id=agent_id,
+            content=content,
+            is_starter=False
+        )
+        
+        # 记录日志
+        try:
+            log_segment_creation(
+                db=db,
+                segment_id=new_segment.id,
+                story_id=story_id,
+                branch_id=main_branch.id,
+                author_id=agent_id,
+                author_type='bot',
+                author_name=bot.name,
+                content_length=len(content),
+                is_continuation='continuation',
+                parent_segment_id=latest_segment.id
+            )
+        except Exception as log_error:
+            logger.warning(f"记录日志失败: {log_error}")
+        
+        # 更新进度摘要
+        summary_prompt = f"""根据以下故事片段，生成一句话进展摘要：
+
+{context}
+
+新片段：{content}
+
+请用一句话总结故事的最新进展。"""
+        
+        try:
+            summary = call_llm(summary_prompt, bot.model)[:200]
+        except:
+            summary = f"继续推进剧情发展"
+        
+        next_action_prompt = f"""根据以下故事内容，预测接下来可能的发展方向：
+
+{context}
+
+新片段：{content}
+
+请用一句话说明接下来的剧情方向。"""
+        
+        try:
+            next_action = call_llm(next_action_prompt, bot.model)[:200]
+        except:
+            next_action = "继续续写，推动剧情发展"
         
         # 更新或创建进度记录
+        progress = db.query(AgentProgress).filter(
+            AgentProgress.agent_id == agent_id,
+            AgentProgress.story_id == story_id
+        ).first()
+        
+        now = datetime.utcnow()
+        
+        if not progress:
+            progress = AgentProgress(
+                agent_id=agent_id,
+                story_id=story_id,
+                summary=summary,
+                next_action=next_action,
+                last_action='continue',
+                last_updated=now,
+                segments_count=latest_segment.sequence_order + 1
+            )
+            db.add(progress)
+        else:
+            progress.summary = summary
+            progress.next_action = next_action
+            progress.last_action = 'continue'
+            progress.last_updated = now
+            progress.segments_count = latest_segment.sequence_order + 1
+        
+        db.commit()
+        
+        return jsonify({
+            "message": "续写完成",
+            "story_id": story_id,
+            "branch_id": str(main_branch.id),
+            "segment_id": str(new_segment.id),
+            "content_length": len(content),
+            "summary": summary,
+            "next_action": next_action
+        }), 200
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"续写失败: {e}", exc_info=True)
+        return jsonify({'error': f'续写失败: {str(e)}'}), 500
+    finally:
+        db.close()
+
+
+@agent_bp.route('/stories/<story_id>/summarize', methods=['POST'])
+@jwt_required()
+def update_story_summary(story_id):
+    """更新故事进展摘要（调用 LLM）"""
+    agent_id = get_jwt_identity()
+    db: Session = get_db()
+    
+    try:
+        # 验证权限
+        agent_story = db.query(AgentStory).filter(
+            AgentStory.agent_id == agent_id,
+            AgentStory.story_id == story_id
+        ).first()
+        
+        if not agent_story:
+            return jsonify({'error': '无权访问此故事'}), 403
+        
+        # 获取 Bot 信息
+        bot = db.query(Agent).filter(Agent.id == agent_id).first()
+        
+        # 获取分支所有片段
+        from src.models.branch import Branch
+        branches = db.query(Branch).filter(
+            Branch.story_id == story_id,
+            Branch.status == 'active'
+        ).all()
+        
+        if not branches:
+            return jsonify({'error': '故事暂无分支'}), 404
+        
+        main_branch = next((b for b in branches if b.parent_branch is None), branches[0])
+        
+        # 获取所有片段（最多50个）
+        segments = db.query(Segment).filter(
+            Segment.branch_id == main_branch.id
+        ).order_by(Segment.sequence_order.asc()).limit(50).all()
+        
+        if not segments:
+            return jsonify({'error': '分支暂无片段'}), 404
+        
+        # 拼接内容
+        content = "\n\n".join([
+            f"【片段 {s.sequence_order}】{s.content}" 
+            for s in segments
+        ])
+        
+        # 调用 LLM 生成摘要
+        summary_prompt = f"""请阅读以下故事内容，然后生成：
+1. 一句话剧情摘要
+2. 接下来可能的发展方向
+
+## 故事内容
+{content[:8000]}  # 限制长度
+
+请用中文回复，格式如下：
+摘要：xxx
+下一步：xxx
+"""
+        
+        # 获取 Bot 信息（用于 LLM）
+        bot_model = bot.model if bot else "qwen2.5:7b"
+        
+        try:
+            result = call_llm(summary_prompt, bot_model)
+            # 解析结果
+            lines = result.strip().split('\n')
+            summary = ""
+            next_action = "继续续写，推动剧情发展"
+            
+            for line in lines:
+                if line.startswith('摘要：') or line.startswith('摘要:'):
+                    summary = line.split('：')[1].split(':')[1] if '：' in line else line.split(':')[1]
+                elif line.startswith('下一步：') or line.startswith('下一步:'):
+                    next_action = line.split('：')[1].split(':')[1] if '：' in line else line.split(':')[1]
+            
+            if not summary:
+                summary = result[:200]
+        except Exception as llm_error:
+            logger.warning(f"LLM 生成摘要失败: {llm_error}")
+            summary = f"故事已有 {len(segments)} 个片段，持续推进中"
+            next_action = "继续续写，推动剧情发展"
+        
+        # 更新进度记录
+        now = datetime.utcnow()
         progress = db.query(AgentProgress).filter(
             AgentProgress.agent_id == agent_id,
             AgentProgress.story_id == story_id
@@ -448,25 +736,33 @@ def update_story_summary(story_id):
                 story_id=story_id,
                 summary=summary,
                 next_action=next_action,
-                last_action='summarize'
+                last_action='summarize',
+                last_updated=now,
+                segments_count=len(segments)
             )
             db.add(progress)
         else:
             progress.summary = summary
             progress.next_action = next_action
             progress.last_action = 'summarize'
-            progress.last_updated = datetime.utcnow()
+            progress.last_updated = now
+            progress.segments_count = len(segments)
         
         db.commit()
         
         return jsonify({
             "message": "摘要已更新",
             "summary": summary,
-            "next_action": next_action
+            "next_action": next_action,
+            "segments_count": len(segments)
         }), 200
         
     except Exception as e:
         db.rollback()
+        logger.error(f"生成摘要失败: {e}", exc_info=True)
+        return jsonify({'error': f'生成摘要失败: {str(e)}'}), 500
+    finally:
+        db.close()
         return jsonify({'error': str(e)}), 500
         
     finally:
