@@ -1,8 +1,8 @@
 """续写日志模型"""
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Text, DateTime, JSONB
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Text, DateTime, Integer
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from src.database import Base
 
 
