@@ -180,31 +180,18 @@ def get_branches_by_story(
     Returns:
         (分支列表, 总数)
     """
-    cache_key_str = cache_key("branches:story", story_id, limit, offset, sort)
-    
-    # 尝试从缓存获取
-    cached = cache_service.get(cache_key_str)
-    if cached:
-        branch_ids = [uuid.UUID(bid) for bid in cached.get('ids', [])]
-        if branch_ids:
-            branches = db.query(Branch).filter(Branch.id.in_(branch_ids)).all()
-            branch_dict = {str(b.id): b for b in branches}
-            ordered_branches = [branch_dict[bid] for bid in cached['ids'] if bid in branch_dict]
-            if ordered_branches:
-                return ordered_branches, cached.get('total', len(ordered_branches))
-    
+    # 暂时禁用缓存，直接查询数据库
+    # TODO: 修复缓存逻辑
     query = db.query(Branch).filter(Branch.story_id == story_id, Branch.status == 'active')
     
     total = query.count()
     
     # 排序
     if sort == 'activity':
-        # 按活跃度排序（需要计算，暂时按创建时间）
         query = query.order_by(desc(Branch.created_at))
     elif sort == 'created_at':
         query = query.order_by(desc(Branch.created_at))
     elif sort == 'vote_score':
-        # 按投票得分排序（暂时按创建时间）
         query = query.order_by(desc(Branch.created_at))
     else:
         query = query.order_by(desc(Branch.created_at))
@@ -214,11 +201,6 @@ def get_branches_by_story(
         query = query.limit(limit).offset(offset)
     
     branches = query.all()
-    
-    # 存入缓存
-    if branches:
-        branch_ids = [str(b.id) for b in branches]
-        cache_service.set(cache_key_str, {'ids': branch_ids, 'total': total}, ttl=180)  # 3分钟
     
     return branches, total
 
