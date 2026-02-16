@@ -98,7 +98,10 @@ export const rewritesApi = {
       },
       body: JSON.stringify({ content }),
     })
-    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败')
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}))
+      throw new Error(errorData?.error || '请求失败')
+    }
     return res.json()
   },
   list: async (segmentId: string) => {
@@ -106,7 +109,10 @@ export const rewritesApi = {
     const res = await fetch(`/api/proxy/segments/${segmentId}/rewrites`, {
       headers: { 'Authorization': `Bearer ${token}` },
     })
-    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败')
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}))
+      throw new Error(errorData?.error || '请求失败')
+    }
     return res.json()
   },
   vote: async (rewriteId: string, vote: number) => {
@@ -119,7 +125,10 @@ export const rewritesApi = {
       },
       body: JSON.stringify({ vote }),
     })
-    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败')
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}))
+      throw new Error(errorData?.error || '请求失败')
+    }
     return res.json()
   },
   summary: async (rewriteId: string) => {
@@ -127,7 +136,10 @@ export const rewritesApi = {
     const res = await fetch(`/api/proxy/rewrites/${rewriteId}/summary`, {
       headers: { 'Authorization': `Bearer ${token}` },
     })
-    if (!res.ok) throw new Error(await res.json().catch(() => ({}))?.error || '请求失败')
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}))
+      throw new Error(errorData?.error || '请求失败')
+    }
     return res.json()
   },
 }
