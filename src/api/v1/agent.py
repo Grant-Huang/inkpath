@@ -110,7 +110,7 @@ def call_llm(prompt: str, bot_model: str = "qwen2.5:7b") -> str:
 # 客户端首页信息接口
 # =====================================================
 
-@agent_bp.route('/home', methods=['GET'])
+@agent_bp.route('/agent-home', methods=['GET'])
 @jwt_required()
 def get_home_data():
     """
@@ -189,7 +189,8 @@ def get_home_data():
         db.close()
 
 
-@agent_bp.route('/stories', methods=['GET'])
+# 为了避免与 stories_bp 冲突，Agent 的故事相关路由使用 /my-stories 前缀
+@agent_bp.route('/my-stories', methods=['GET'])
 @jwt_required()
 def get_stories_list():
     """
@@ -293,7 +294,7 @@ def get_stories_list():
         db.close()
 
 
-@agent_bp.route('/stories/<story_id>', methods=['GET'])
+@agent_bp.route('/my-stories/<story_id>', methods=['GET'])
 @jwt_required()
 def get_story_detail(story_id):
     """
@@ -335,7 +336,7 @@ def get_story_detail(story_id):
         db.close()
 
 
-@agent_bp.route('/stories/<story_id>/progress', methods=['GET'])
+@agent_bp.route('/my-stories/<story_id>/progress', methods=['GET'])
 @jwt_required()
 def get_story_progress(story_id):
     """
@@ -374,7 +375,7 @@ def get_story_progress(story_id):
         db.close()
 
 
-@agent_bp.route('/stats', methods=['GET'])
+@agent_bp.route('/agent-stats', methods=['GET'])
 @jwt_required()
 def get_agent_stats():
     """
@@ -420,7 +421,7 @@ def get_agent_stats():
 # Agent 操作接口
 # =====================================================
 
-@agent_bp.route('/register', methods=['POST'])
+@agent_bp.route('/agent-register', methods=['POST'])
 @jwt_required()
 def register_agent():
     """
@@ -489,7 +490,7 @@ def register_agent():
         db.close()
 
 
-@agent_bp.route('/me', methods=['GET'])
+@agent_bp.route('/agent-info', methods=['GET'])
 @jwt_required()
 def get_agent_info():
     """获取当前 Agent 信息"""
@@ -515,7 +516,7 @@ def get_agent_info():
         db.close()
 
 
-@agent_bp.route('/stories/<story_id>/continue', methods=['POST'])
+@agent_bp.route('/my-stories/<story_id>/continue', methods=['POST'])
 @jwt_required()
 def continue_story(story_id):
     """
@@ -702,7 +703,7 @@ def continue_story(story_id):
         db.close()
 
 
-@agent_bp.route('/stories/<story_id>/summarize', methods=['POST'])
+@agent_bp.route('/my-stories/<story_id>/summarize', methods=['POST'])
 @jwt_required()
 def update_story_summary(story_id):
     """更新故事进展摘要（调用 LLM）"""
@@ -819,7 +820,7 @@ def update_story_summary(story_id):
         db.close()
 
 
-@agent_bp.route('/stories/<story_id>/auto-continue', methods=['PUT'])
+@agent_bp.route('/my-stories/<story_id>/auto-continue', methods=['PUT'])
 @jwt_required()
 def update_auto_continue(story_id):
     """更新故事的自动续写设置"""
@@ -857,8 +858,8 @@ def update_auto_continue(story_id):
         db.close()
 
 
-@agent_bp.route('/monitor', methods=['POST'])
-@agent_bp.route('/profile', methods=['PATCH'])
+@agent_bp.route('/agent-monitor', methods=['POST'])
+@agent_bp.route('/agent-profile', methods=['PATCH'])
 @jwt_required()
 def update_bot_profile():
     """更新 Bot 个人信息（名称、模型等）"""
@@ -899,7 +900,7 @@ def update_bot_profile():
         db.close()
 
 
-@agent_bp.route('/profile', methods=['GET'])
+@agent_bp.route('/agent-profile', methods=['GET'])
 @jwt_required()
 def get_bot_profile():
     """获取 Bot 个人信息"""
@@ -942,7 +943,7 @@ def monitor_stories():
 # 预加载接口
 # =====================================================
 
-@agent_bp.route('/preload/<story_id>', methods=['GET'])
+@agent_bp.route('/agent-preload/<story_id>', methods=['GET'])
 @jwt_required()
 def preload_story(story_id):
     """预加载故事完整数据"""
