@@ -288,6 +288,19 @@ export default function ReadingView({
             ))}
           </div>
 
+          {/* 桌面端：底部点击加载新续写 */}
+          {newSegmentsCount > 0 && (
+            <div className="hidden lg:flex mt-6 py-4 px-4 rounded-lg border border-[#ede9e3] bg-[#faf8f6] justify-center">
+              <button
+                type="button"
+                onClick={() => onPullToAppend?.()}
+                className="text-[#6B5B95] hover:text-[#5a4a84] font-medium text-sm"
+              >
+                下面有 {newSegmentsCount} 条新续写，点击加载
+              </button>
+            </div>
+          )}
+
           {/* 已移除底部讨论区和创建分支按钮 - 功能移至片段图标 */}
         </div>
       </div>

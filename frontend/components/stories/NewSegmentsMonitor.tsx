@@ -123,7 +123,7 @@ export function NewSegmentsButton({
   )
 }
 
-// 移动端上拉追加组件
+// 移动端底部上拉或点击加载更多
 export function PullToAppend({ 
   hasMore, 
   loading, 
@@ -135,23 +135,19 @@ export function PullToAppend({
 }) {
   const [isPulling, setIsPulling] = useState(false)
   const pullStartY = useRef<number>(0)
-  const containerRef = useRef<HTMLDivElement>(null)
 
+  // 底部上拉：手指向上滑（clientY 变小）视为上拉
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    // 只在滚动到顶部时触发
-    if (containerRef.current && containerRef.current.scrollTop > 50) return
     pullStartY.current = e.touches[0].clientY
   }, [])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (pullStartY.current === 0 || !containerRef.current) return
-    
+    if (pullStartY.current === 0) return
     const currentY = e.touches[0].clientY
     const diff = currentY - pullStartY.current
-    
-    if (diff > 50) {
+    if (diff < -50) {
       setIsPulling(true)
-    } else if (diff < 20) {
+    } else if (diff > -20) {
       setIsPulling(false)
     }
   }, [])
@@ -164,15 +160,22 @@ export function PullToAppend({
     pullStartY.current = 0
   }, [isPulling, onLoadMore])
 
+  const handleClick = useCallback(() => {
+    if (!loading) onLoadMore()
+  }, [loading, onLoadMore])
+
   if (!hasMore) return null
 
   return (
     <div
-      ref={containerRef}
-      className="w-full py-4 flex items-center justify-center"
+      role="button"
+      tabIndex={0}
+      className="w-full py-4 flex items-center justify-center cursor-pointer touch-manipulation select-none"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onClick={handleClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClick() }}
     >
       {loading ? (
         <div className="flex items-center gap-2 text-[#a89080]">
@@ -186,8 +189,8 @@ export function PullToAppend({
         </div>
       ) : (
         <div className="flex items-center gap-2 text-[#a89080]">
-          <span className="text-lg">⬇️</span>
-          <span className="text-xs">上拉加载新内容</span>
+          <span className="text-lg">⬆️</span>
+          <span className="text-xs">上拉或点击加载新内容</span>
         </div>
       )}
     </div>

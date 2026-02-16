@@ -1,24 +1,22 @@
 /**
- * API客户端 - 真实数据模式
+ * API客户端 - 使用代理路由
  */
+
+// 基础 URL - 使用代理
+const PROXY_BASE = '/api/proxy';
+
+// axios 用于服务端渲染
 import axios from 'axios'
 
-// API URL配置
-const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
-
-// 创建axios客户端
 const apiClient = axios.create({
-  baseURL: API_URL ? `${API_URL}/api/v1` : '/api/v1',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: PROXY_BASE,
+  headers: { 'Content-Type': 'application/json' },
   timeout: 60000,
-  validateStatus: (status) => status < 500,
 })
 
 // 请求拦截器
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('jwt_token')
+  const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -29,9 +27,8 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('jwt_token')
-      window.location.href = '/'
     }
     return Promise.reject(error)
   }
@@ -40,56 +37,83 @@ apiClient.interceptors.response.use(
 // ===== API端点 =====
 
 export const storiesApi = {
-  list: () => apiClient!.get('/stories'),
-  get: (id: string) => apiClient!.get(`/stories/${id}`),
-  create: (data: any) => apiClient!.post('/stories', data),
+  list: (params?: { limit?: number; offset?: number }) => 
+    apiClient.get('/stories', { params }),
+  get: (id: string) => apiClient.get(`/stories/${id}`),
+  create: (data: any) => apiClient.post('/stories', data),
+  getBranches: (storyId: string, params?: { limit?: number; sort?: string }) => 
+    apiClient.get(`/stories/${storyId}/branches`, { params }),
 }
 
 export const branchesApi = {
-  list: (storyId: string, params?: { limit?: number; offset?: number; sort?: string }) => 
-    apiClient!.get(`/stories/${storyId}/branches`, { params }),
-  get: (id: string) => apiClient!.get(`/branches/${id}`),
-  create: (storyId: string, data: any) => apiClient!.post(`/stories/${storyId}/branches`, data),
-  tree: (storyId: string) => apiClient!.get(`/stories/${storyId}/branches/tree`),
-  participants: (branchId: string) => apiClient!.get(`/branches/${branchId}/participants`),
+  list: (storyId: string, params?: { limit?: number; sort?: string }) => 
+    apiClient.get(`/stories/${storyId}/branches`, { params }),
+  get: (id: string) => apiClient.get(`/branches/${id}`),
+  getSegments: (branchId: string, params?: { limit?: number; offset?: number }) => 
+    apiClient.get(`/branches/${branchId}/segments`, { params }),
+  getParticipants: (branchId: string) => 
+    apiClient.get(`/branches/${branchId}/participants`),
 }
 
 export const segmentsApi = {
-  list: (branchId: string) => apiClient!.get(`/branches/${branchId}/segments`),
-  create: (branchId: string, data: any) => apiClient!.post(`/branches/${branchId}/segments`, data),
+  list: (branchId: string) => apiClient.get(`/branches/${branchId}/segments`),
+  create: (branchId: string, data: any) => apiClient.post(`/branches/${branchId}/segments`, data),
 }
 
 export const votesApi = {
-  create: (data: any) => apiClient!.post('/votes', data),
+  create: (data: any) => apiClient.post('/votes', data),
   summary: (targetType: string, targetId: string) => 
-    apiClient!.get(`/${targetType}s/${targetId}/votes/summary`),
+    apiClient.get(`/${targetType}s/${targetId}/votes/summary`),
 }
 
 export const commentsApi = {
-  list: (branchId: string) => apiClient!.get(`/branches/${branchId}/comments`),
-  create: (branchId: string, data: any) => apiClient!.post(`/branches/${branchId}/comments`, data),
+  list: (branchId: string) => apiClient.get(`/branches/${branchId}/comments`),
+  create: (branchId: string, data: any) => apiClient.post(`/branches/${branchId}/comments`, data),
 }
 
 export const summariesApi = {
   get: (branchId: string, forceRefresh?: boolean) => 
-    apiClient!.get(`/branches/${branchId}/summary`, { params: { force_refresh: forceRefresh } }),
-  generate: (branchId: string) => apiClient!.post(`/branches/${branchId}/summary`),
+    apiClient.get(`/branches/${branchId}/summary`, { params: { force_refresh: forceRefresh } }),
+  generate: (branchId: string) => apiClient.post(`/branches/${branchId}/summary`),
 }
 
 export const configApi = {
-  get: () => apiClient!.get('/config'),
+  get: () => apiClient.get('/config'),
 }
 
 export const usersApi = {
-  getMe: () => apiClient!.get('/users/me'),
+  getMe: () => apiClient.get('/users/me'),
   updateMe: (data: { name?: string; bio?: string; avatar_url?: string }) => 
-    apiClient!.patch('/users/me', data),
+    apiClient.patch('/users/me', data),
 }
 
-// ===== 重写 API（通过代理避免 CORS）=====
+// ===== 管理后台 API =====
+
+export const adminApi = {
+  exportStory: (storyId: string, format: 'md' | 'word' | 'pdf' = 'md') =>
+    apiClient.get(`/admin/stories/${storyId}/export`, {
+      params: { format: format === 'word' ? 'docx' : format },
+      responseType: format === 'md' ? 'text' : 'blob',
+    }),
+  updateSegment: (segmentId: string, content: string) =>
+    apiClient.patch(`/admin/segments/${segmentId}`, { content }),
+  deleteSegment: (segmentId: string) =>
+    apiClient.delete(`/admin/segments/${segmentId}`),
+  listUsers: () => apiClient.get('/admin/users'),
+  listBots: () => apiClient.get('/admin/bots'),
+  updateBot: (botId: string, data: { status?: string }) =>
+    apiClient.patch(`/admin/bots/${botId}`, data),
+}
+
+export const dashboardApi = {
+  getStats: () => apiClient.get('/dashboard/stats'),
+}
+
+// ===== 代理 API（使用 fetch，避免 axios 拦截器问题）=====
+
 export const rewritesApi = {
   create: async (segmentId: string, content: string) => {
-    const token = localStorage.getItem('jwt_token')
+    const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null
     const res = await fetch(`/api/proxy/segments/${segmentId}/rewrites`, {
       method: 'POST',
       headers: {
@@ -105,7 +129,7 @@ export const rewritesApi = {
     return res.json()
   },
   list: async (segmentId: string) => {
-    const token = localStorage.getItem('jwt_token')
+    const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null
     const res = await fetch(`/api/proxy/segments/${segmentId}/rewrites`, {
       headers: { 'Authorization': `Bearer ${token}` },
     })
@@ -116,7 +140,7 @@ export const rewritesApi = {
     return res.json()
   },
   vote: async (rewriteId: string, vote: number) => {
-    const token = localStorage.getItem('jwt_token')
+    const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null
     const res = await fetch(`/api/proxy/rewrites/${rewriteId}/votes`, {
       method: 'POST',
       headers: {
@@ -131,38 +155,4 @@ export const rewritesApi = {
     }
     return res.json()
   },
-  summary: async (rewriteId: string) => {
-    const token = localStorage.getItem('jwt_token')
-    const res = await fetch(`/api/proxy/rewrites/${rewriteId}/summary`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-    })
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}))
-      throw new Error(errorData?.error || '请求失败')
-    }
-    return res.json()
-  },
-}
-
-// ===== 管理后台 API（需管理员 JWT）=====
-export const adminApi = {
-  /** 导出故事：format=md 返回 text，word/pdf 返回 blob */
-  exportStory: (storyId: string, format: 'md' | 'word' | 'pdf' = 'md') =>
-    apiClient!.get(`/admin/stories/${storyId}/export`, {
-      params: { format: format === 'word' ? 'docx' : format },
-      responseType: format === 'md' ? 'text' : 'blob',
-    }),
-  updateSegment: (segmentId: string, content: string) =>
-    apiClient!.patch(`/admin/segments/${segmentId}`, { content }),
-  deleteSegment: (segmentId: string) =>
-    apiClient!.delete(`/admin/segments/${segmentId}`),
-  listUsers: () => apiClient!.get('/admin/users'),
-  listBots: () => apiClient!.get('/admin/bots'),
-  updateBot: (botId: string, data: { status?: string }) =>
-    apiClient!.patch(`/admin/bots/${botId}`, data),
-}
-
-// ===== Dashboard 统计 API（需管理员 JWT）=====
-export const dashboardApi = {
-  getStats: () => apiClient!.get('/dashboard/stats'),
 }

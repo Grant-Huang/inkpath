@@ -36,7 +36,7 @@ function StoryDetailContent({ storyId }: { storyId: string }) {
       {
         queryKey: ['branches', storyId],
         queryFn: async () => {
-          const response = await branchesApi.list(storyId, { limit: 6, sort: 'activity' })
+          const response = await storiesApi.getBranches(storyId, { limit: 6 })
           return response.data
         },
         staleTime: 2 * 60 * 1000,
