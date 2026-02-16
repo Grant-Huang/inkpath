@@ -13,6 +13,7 @@ import logging
 from src.database import get_db
 from src.models.agent import Agent, AgentStory, AgentProgress
 from src.models.segment import Segment
+from src.models.story import Story
 
 agent_bp = Blueprint('agent', __name__)
 
@@ -222,6 +223,7 @@ def get_home_data():
 def get_stories_list():
     """
     获取分配给 Agent 的故事列表（分页）
+    包括：1) 分配的故事 2) 自己创建的故事
     """
     agent_id = get_jwt_identity()
     db = next(get_db())
@@ -231,35 +233,75 @@ def get_stories_list():
         limit = min(request.args.get('limit', 20, type=int), 100)
         status_filter = request.args.get('status', 'all')
         
-        # 获取 Agent 分配的故事
-        agent_stories = db.query(AgentStory).filter(AgentStory.agent_id == agent_id).all()
-        
         stories = []
-        for as_record in agent_stories:
-            # 获取进度
-            progress = db.query(AgentProgress).filter(
-                AgentProgress.agent_id == agent_id,
-                AgentProgress.story_id == as_record.story_id
-            ).first()
+        
+        # 1. 获取 Agent 分配的故事
+        try:
+            agent_stories = db.query(AgentStory).filter(AgentStory.agent_id == agent_id).all()
+            for as_record in agent_stories:
+                progress = db.query(AgentProgress).filter(
+                    AgentProgress.agent_id == agent_id,
+                    AgentProgress.story_id == as_record.story_id
+                ).first()
+                
+                auto_continue = as_record.auto_continue
+                
+                if status_filter == 'running' and not auto_continue:
+                    continue
+                if status_filter == 'idle' and auto_continue:
+                    continue
+                    
+                story = db.query(Story).filter(Story.id == as_record.story_id).first()
+                if story:
+                    stories.append({
+                        'id': str(story.id),
+                        'title': story.title,
+                        'owner_type': story.owner_type,
+                        'auto_continue': auto_continue,
+                        'progress': {
+                            'summary': progress.summary if progress else None,
+                            'next_action': progress.next_action if progress else None,
+                            'last_action': progress.last_action if progress else None,
+                            'segments_count': progress.segments_count if progress else 0
+                        } if progress else None
+                    })
+        except Exception as e:
+            logger.warning(f"查询分配故事失败: {e}")
+        
+        # 2. 获取 Agent 自己创建的故事
+        try:
+            owned_stories = db.query(Story).filter(
+                Story.owner_id == agent_id,
+                Story.owner_type == 'bot'
+            ).all()
             
-            auto_continue = as_record.auto_continue
-            
-            if status_filter == 'running' and not auto_continue:
-                continue
-            if status_filter == 'idle' and auto_continue:
-                continue
-            
-            stories.append({
-                'id': str(as_record.story_id),
-                'auto_continue': auto_continue,
-                'summary': progress.summary if progress else None,
-                'next_action': progress.next_action if progress else None,
-                'segments_count': progress.segments_count if progress else 0,
-                'last_updated': progress.last_updated.isoformat() if progress and progress.last_updated else None,
-                'last_action': progress.last_action if progress else None
-            })
+            for story in owned_stories:
+                # 跳过已添加的
+                if any(s['id'] == str(story.id) for s in stories):
+                    continue
+                    
+                progress = db.query(AgentProgress).filter(
+                    AgentProgress.agent_id == agent_id,
+                    AgentProgress.story_id == story.id
+                ).first()
+                
+                stories.append({
+                    'id': str(story.id),
+                    'title': story.title,
+                    'owner_type': story.owner_type,
+                    'auto_continue': True,  # 自己创建的故事默认自动续写
+                    'progress': {
+                        'summary': progress.summary if progress else None,
+                        'next_action': progress.next_action if progress else None,
+                        'last_action': progress.last_action if progress else None,
+                        'segments_count': progress.segments_count if progress else 0
+                    } if progress else None
+                })
+        except Exception as e:
+            logger.warning(f"查询拥有故事失败: {e}")
         
         # 分页
+        total = len(stories)
         start = (page - 1) * limit
         end = start + limit
         paginated_stories = stories[start:end]
@@ -270,8 +312,8 @@ def get_stories_list():
                 'pagination': {
                     'page': page,
                     'limit': limit,
-                    'total': len(stories),
-                    'total_pages': (len(stories) + limit - 1) // limit
+                    'total': total,
+                    'pages': (total + limit - 1) // limit
                 }
             }
         }), 200
