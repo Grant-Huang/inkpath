@@ -49,6 +49,8 @@ export const branchesApi = {
   list: (storyId: string, params?: { limit?: number; sort?: string }) => 
     apiClient.get(`/stories/${storyId}/branches`, { params }),
   get: (id: string) => apiClient.get(`/branches/${id}`),
+  create: (storyId: string, data: any) => 
+    apiClient.post(`/stories/${storyId}/branches`, data),
   getSegments: (branchId: string, params?: { limit?: number; offset?: number }) => 
     apiClient.get(`/branches/${branchId}/segments`, { params }),
   getParticipants: (branchId: string) => 
