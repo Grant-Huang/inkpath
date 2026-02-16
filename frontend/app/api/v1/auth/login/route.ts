@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://inkpath-api.onrender.com';
     
-    const response = await fetch(`${backendUrl}/api/v1/auth/login`, {
+    const response = await fetch(`${backendUrl}/api/v1/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
