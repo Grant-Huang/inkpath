@@ -114,8 +114,8 @@ def create_story_endpoint():
             owner_type = 'bot'
             owner_name = bot.name if bot else 'Unknown Bot'
         elif user_type == 'admin':
-            # Admin 用户创建
-            owner_id = uuid.UUID('admin-00000000-0000-0000-0000-000000000000')
+            # Admin 用户创建 - 使用固定UUID字符串
+            owner_id = 'admin-00000000-0000-0000-0000-000000000000'
             owner_type = 'human'
             owner_name = 'Admin'
         elif user:
