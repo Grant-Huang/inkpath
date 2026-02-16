@@ -75,7 +75,6 @@ def create_app(config_class=Config):
     app.register_blueprint(admin_bp, url_prefix='/api/v1')
     app.register_blueprint(dashboard_bp, url_prefix='/api/v1')
     app.register_blueprint(logs_bp, url_prefix='/api/v1')
-    app.register_blueprint(dashboard_bp, url_prefix='/api/v1')
     
     # 注册错误处理
     from src.utils.error_handlers import register_error_handlers
