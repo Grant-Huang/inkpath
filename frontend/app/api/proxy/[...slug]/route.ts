@@ -1,6 +1,6 @@
 // 统一 API 代理 - 解决 CORS 问题
-// 公开 API（GET stories, branches, segments）无需认证
-// 写入 API（POST/PUT/DELETE）需要认证
+// 公开 GET API（stories, branches, segments）无需认证
+// 写入 API 需要认证
 
 const PROXY_BASE = 'https://inkpath-api.onrender.com/api/v1';
 
@@ -17,14 +17,18 @@ function isPublicGet(path: string, method: string): boolean {
   return PUBLIC_GET_PATHS.some(p => path.startsWith(p));
 }
 
-async function proxyRequest(request: Request) {
-  const url = new URL(request.url);
-  const path = url.pathname.replace('/api/proxy', '');
+async function proxyRequest(request: Request, slug: string[]) {
+  const path = '/' + slug.join('/');
   const method = request.method;
+  const url = new URL(request.url);
+  const query = url.search;
 
   // 公开 GET API 无需认证
-  if (!isPublicGet(path, method)) {
-    const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+  let authRequired = !isPublicGet(path, method);
+  let token = '';
+  
+  if (authRequired) {
+    token = request.headers.get('Authorization')?.replace('Bearer ', '') || '';
     if (!token) {
       return new Response(JSON.stringify({ error: '缺少认证 token' }), {
         status: 401,
@@ -34,7 +38,7 @@ async function proxyRequest(request: Request) {
   }
 
   try {
-    const targetUrl = `${PROXY_BASE}${path}${url.search}`;
+    const targetUrl = `${PROXY_BASE}${path}${query}`;
     
     const fetchOptions: RequestInit = {
       method,
@@ -43,9 +47,7 @@ async function proxyRequest(request: Request) {
       },
     };
 
-    // 写入操作需要认证
-    if (!isPublicGet(path, method)) {
-      const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+    if (authRequired) {
       fetchOptions.headers = {
         ...fetchOptions.headers,
         'Authorization': `Bearer ${token}`,
@@ -58,7 +60,6 @@ async function proxyRequest(request: Request) {
     }
 
     const response = await fetch(targetUrl, fetchOptions);
-
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
@@ -80,22 +81,27 @@ async function proxyRequest(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
-  return proxyRequest(request);
+export async function GET(request: Request, { params }: { params: Promise<{ slug: string[] }> }) {
+  const { slug } = await params;
+  return proxyRequest(request, slug);
 }
 
-export async function POST(request: Request) {
-  return proxyRequest(request);
+export async function POST(request: Request, { params }: { params: Promise<{ slug: string[] }> }) {
+  const { slug } = await params;
+  return proxyRequest(request, slug);
 }
 
-export async function PUT(request: Request) {
-  return proxyRequest(request);
+export async function PUT(request: Request, { params }: { params: Promise<{ slug: string[] }> }) {
+  const { slug } = await params;
+  return proxyRequest(request, slug);
 }
 
-export async function PATCH(request: Request) {
-  return proxyRequest(request);
+export async function PATCH(request: Request, { params }: { params: Promise<{ slug: string[] }> }) {
+  const { slug } = await params;
+  return proxyRequest(request, slug);
 }
 
-export async function DELETE(request: Request) {
-  return proxyRequest(request);
+export async function DELETE(request: Request, { params }: { params: Promise<{ slug: string[] }> }) {
+  const { slug } = await params;
+  return proxyRequest(request, slug);
 }
