@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 type Tab = 'export' | 'segments' | 'users' | 'logs';
 
 export default function AdminPage() {
+  const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -13,22 +16,57 @@ export default function AdminPage() {
   const [stories, setStories] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [bots, setBots] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [segmentBranchId, setSegmentBranchId] = useState('');
   const [segments, setSegments] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
 
   useEffect(() => {
-    const t = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null;
+    const t = localStorage.getItem('jwt_token');
     setToken(t);
+    setLoading(false);
   }, []);
 
-  const getToken = () => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('jwt_token');
+  const apiGet = async (path: string) => {
+    const t = localStorage.getItem('jwt_token');
+    const res = await fetch(`/api/proxy${path}`, {
+      headers: { 'Authorization': `Bearer ${t}` },
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData?.error || '请求失败');
     }
-    return null;
+    return res.json();
+  };
+
+  const apiPatch = async (path: string, body: any) => {
+    const t = localStorage.getItem('jwt_token');
+    const res = await fetch(`/api/proxy${path}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${t}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData?.error || '请求失败');
+    }
+    return res.json();
+  };
+
+  const apiDelete = async (path: string) => {
+    const t = localStorage.getItem('jwt_token');
+    const res = await fetch(`/api/proxy${path}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${t}` },
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData?.error || '请求失败');
+    }
+    return res.json();
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -45,99 +83,70 @@ export default function AdminPage() {
       if (data.access_token) {
         localStorage.setItem('jwt_token', data.access_token);
         setToken(data.access_token);
+        router.refresh();
       } else {
         setLoginError(data.error || '登录失败');
       }
     } catch (err: any) {
-      setLoginError(err.message || '请求失败');
+      setLoginError(err.message || '登录失败');
     } finally {
       setLoading(false);
     }
   };
 
-  // 代理 API 调用
-  const apiGet = async (path: string) => {
-    const token = getToken();
-    const res = await fetch(`/api/proxy${path}`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData?.error || '请求失败');
-    }
-    return res.json();
-  };
-
-  const apiPatch = async (path: string, body: any) => {
-    const token = getToken();
-    const res = await fetch(`/api/proxy${path}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData?.error || '请求失败');
-    }
-    return res.json();
-  };
-
-  const apiDelete = async (path: string) => {
-    const token = getToken();
-    const res = await fetch(`/api/proxy${path}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData?.error || '请求失败');
-    }
-    return res.json();
+  const handleLogout = () => {
+    localStorage.removeItem('jwt_token');
+    setToken(null);
+    router.refresh();
   };
 
   const loadStories = async () => {
-    const data = await apiGet('/stories?limit=100');
-    setStories(data.data?.stories || []);
+    try {
+      const data = await apiGet('/stories?limit=100');
+      setStories(data.data?.stories || []);
+    } catch (err: any) {
+      alert(err.message || '加载失败');
+    }
   };
 
   const loadUsers = async () => {
-    const data = await apiGet('/admin/users');
-    setUsers(data.data?.users || []);
+    try {
+      const data = await apiGet('/admin/users');
+      setUsers(data.data?.users || []);
+    } catch (err: any) {
+      alert(err.message || '加载失败');
+    }
   };
 
   const loadBots = async () => {
-    const data = await apiGet('/admin/bots');
-    setBots(data.data?.bots || []);
+    try {
+      const data = await apiGet('/admin/bots');
+      setBots(data.data?.bots || []);
+    } catch (err: any) {
+      alert(err.message || '加载失败');
+    }
   };
 
   const loadSegments = async () => {
     if (!segmentBranchId.trim()) return;
-    const data = await apiGet(`/branches/${segmentBranchId.trim()}/segments`);
-    setSegments(data.data?.segments || []);
-  };
-
-  useEffect(() => {
-    if (!token) return;
-    if (tab === 'export') loadStories();
-    if (tab === 'users') {
-      loadUsers();
-      loadBots();
+    try {
+      const data = await apiGet(`/branches/${segmentBranchId.trim()}/segments`);
+      setSegments(data.data?.segments || []);
+    } catch (err: any) {
+      alert(err.message || '加载失败');
     }
-  }, [token, tab]);
+  };
 
   const handleExport = async (storyId: string, format: 'md' | 'word' | 'pdf') => {
     try {
-      const token = getToken();
-      if (!token) {
+      const t = localStorage.getItem('jwt_token');
+      if (!t) {
         alert('请先登录');
         return;
       }
       
       const response = await fetch(`/api/proxy/admin/stories/${storyId}/export?format=${format}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { 'Authorization': `Bearer ${t}` },
       });
 
       if (!response.ok) {
@@ -189,9 +198,17 @@ export default function AdminPage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen p-8 flex items-center justify-center">
+        <p className="text-[#7a6f65]">加载中…</p>
+      </div>
+    );
+  }
+
   if (!token) {
     return (
-      <div className="min-h-screen p-8 flex justify-center items-start">
+      <div className="min-h-screen p-8 flex justify-center items-start pt-20">
         <div className="w-full max-w-sm bg-white rounded-xl border border-[#ede9e3] p-6 shadow-sm">
           <h1 className="text-xl font-bold text-[#2c2420] mb-4">管理后台登录</h1>
           <p className="text-sm text-[#7a6f65] mb-4">
@@ -235,7 +252,13 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen p-6 lg:p-10">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold text-[#2c2420] mb-6">管理后台</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-[#2c2420]">管理后台</h1>
+          <button onClick={handleLogout} className="text-sm text-[#7a6f65] hover:text-[#6B5B95]">
+            退出登录
+          </button>
+        </div>
+        
         <div className="flex gap-2 mb-6">
           {tabs.map((t) => (
             <button
@@ -300,10 +323,9 @@ export default function AdminPage() {
                     </>
                   ) : (
                     <>
-                      <p className="text-xs text-[#a89080]">#{seg.sequence_order} · {seg.bot_name || '—'} · {seg.created_at ? new Date(seg.created_at).toLocaleString() : ''}</p>
-                      <p className="text-sm text-[#2c2420] mt-1 whitespace-pre-wrap">{seg.content}</p>
-                      <div className="flex gap-2 mt-2">
-                        <button onClick={() => { setEditingId(seg.id); setEditContent(seg.content); }} className="px-3 py-1 bg-[#6B5B95] text-white rounded text-sm">编辑</button>
+                      <p className="text-[#2c2420] text-sm whitespace-pre-wrap mb-2">{seg.content?.slice(0, 200)}...</p>
+                      <div className="flex gap-2">
+                        <button onClick={() => { setEditingId(seg.id); setEditContent(seg.content || ''); }} className="px-3 py-1 bg-blue-600 text-white rounded text-sm">编辑</button>
                         <button onClick={() => handleDeleteSegment(seg.id)} className="px-3 py-1 bg-red-600 text-white rounded text-sm">删除</button>
                       </div>
                     </>
@@ -311,20 +333,19 @@ export default function AdminPage() {
                 </li>
               ))}
             </ul>
-            {segments.length === 0 && segmentBranchId && <p className="text-[#7a6f65] text-sm">该分支暂无片段或 ID 无效</p>}
+            {segments.length === 0 && <p className="text-[#7a6f65] text-sm">暂无片段</p>}
           </div>
         )}
 
         {tab === 'users' && (
           <div className="space-y-6">
             <div className="bg-white rounded-xl border border-[#ede9e3] p-6">
-              <h2 className="text-lg font-semibold text-[#2c2420] mb-4">用户（API 注册）</h2>
+              <h2 className="text-lg font-semibold text-[#2c2420] mb-4">用户</h2>
               <button onClick={loadUsers} className="mb-4 px-3 py-1.5 bg-[#f0ebe4] rounded-lg text-sm">刷新</button>
               <ul className="space-y-2">
                 {users.map((u: any) => (
-                  <li key={u.id} className="flex justify-between py-2 border-b border-[#f0ebe4] text-sm">
-                    <span>{u.username ?? u.email} ({u.user_type})</span>
-                    <span className="text-[#a89080]">{u.email}</span>
+                  <li key={u.id} className="flex justify-between items-center py-2 border-b border-[#f0ebe4] text-sm">
+                    <span>{u.name} · {u.email} · <span className={u.user_type === 'admin' ? 'text-purple-600' : 'text-gray-600'}>{u.user_type}</span></span>
                   </li>
                 ))}
               </ul>
