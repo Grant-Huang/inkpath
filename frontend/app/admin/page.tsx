@@ -136,7 +136,7 @@ export default function AdminPage() {
         return;
       }
       
-      const response = await fetch(`/api/v1/export?story_id=${storyId}&format=${format}`, {
+      const response = await fetch(`/api/proxy/admin/stories/${storyId}/export?format=${format}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 

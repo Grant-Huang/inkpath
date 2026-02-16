@@ -60,17 +60,45 @@ async function proxyRequest(request: Request, slug: string[]) {
     }
 
     const response = await fetch(targetUrl, fetchOptions);
-    const data = await response.json().catch(() => ({}));
 
+    // 尝试获取 Content-Type
+    const contentType = response.headers.get('Content-Type') || '';
+    
+    // 如果是 JSON 响应，解析并返回
+    if (contentType.includes('application/json')) {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return new Response(JSON.stringify({ error: data?.error?.message || `请求失败: ${response.status}` }), {
+          status: response.status,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify(data), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 非 JSON 响应（文件导出等），直接透传
     if (!response.ok) {
-      return new Response(JSON.stringify({ error: data?.error?.message || `请求失败: ${response.status}` }), {
+      const text = await response.text();
+      return new Response(JSON.stringify({ error: text || `请求失败: ${response.status}` }), {
         status: response.status,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    return new Response(JSON.stringify(data), {
-      headers: { 'Content-Type': 'application/json' },
+    // 获取响应头（透传关键头）
+    const newHeaders = new Headers();
+    response.headers.forEach((value, key) => {
+      if (['content-type', 'content-disposition', 'content-length'].includes(key.toLowerCase())) {
+        newHeaders.set(key, value);
+      }
+    });
+
+    const blob = await response.blob();
+    return new Response(blob, {
+      status: response.status,
+      headers: newHeaders,
     });
   } catch (error) {
     console.error('代理错误:', error);
