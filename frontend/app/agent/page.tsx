@@ -36,7 +36,7 @@ export default function AgentPanelPage() {
   const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('inkpath_token');
+    const token = localStorage.getItem('jwt_token');
     if (!token) {
       router.push('/');
       return;
@@ -53,7 +53,7 @@ export default function AgentPanelPage() {
     try {
       // 获取 Agent 信息
       const agentRes = await fetch('/api/v1/agent/me', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('inkpath_token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` }
       });
       if (agentRes.ok) {
         const data = await agentRes.json();
@@ -62,7 +62,7 @@ export default function AgentPanelPage() {
 
       // 获取分配的故事
       const storiesRes = await fetch('/api/v1/agent/stories', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('inkpath_token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` }
       });
       if (storiesRes.ok) {
         const data = await storiesRes.json();
@@ -94,7 +94,7 @@ export default function AgentPanelPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('inkpath_token')}`
+          'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
         },
         body: JSON.stringify({ enabled })
       });
@@ -112,7 +112,7 @@ export default function AgentPanelPage() {
     try {
       await fetch(`/api/v1/agent/stories/${storyId}/continue`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('inkpath_token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` }
       });
       
       addLog('success', '续写完成');
@@ -128,7 +128,7 @@ export default function AgentPanelPage() {
     try {
       await fetch(`/api/v1/agent/stories/${storyId}/summarize`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('inkpath_token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` }
       });
       
       addLog('success', '进度摘要已更新');
