@@ -23,9 +23,8 @@ class Agent(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # 关系
-    owner = relationship('User', backref='agents')
-    stories = relationship('AgentStory', back_populates='agent', cascade='all, delete-orphan')
+    # 关系 - 由于外键已移除，改为直接查询
+    # stories = relationship('AgentStory', back_populates='agent', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Agent {self.name}>'
@@ -51,8 +50,7 @@ class AgentStory(Base):
         {'schema': None},
     )
 
-    # 关系
-    agent = relationship('Agent', back_populates='stories')
+    # 关系已移除（外键约束已移除）
 
     def __repr__(self):
         return f'<AgentStory {self.agent_id} -> {self.story_id}>'
