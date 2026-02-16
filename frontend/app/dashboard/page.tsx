@@ -7,35 +7,44 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const apiGet = async (path: string) => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null;
-    const res = await fetch(`/api/proxy${path}`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error || '请求失败');
-    }
-    return res.json();
-  };
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
       const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null;
       if (!token) {
         setError('请先登录管理后台');
+        setErrorStatus(401);
         setLoading(false);
         return;
       }
       try {
-        const res = await apiGet('/dashboard/stats');
-        setStats(res.data ?? null);
+        const res = await fetch('/api/proxy/dashboard/stats', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          setErrorStatus(res.status);
+          if (res.status === 401) {
+            setError('登录已过期或无效，请重新登录管理后台');
+          } else if (res.status === 403) {
+            setError('需要管理员权限');
+          } else if (res.status === 404) {
+            setError('数据接口暂时不可用（404），请稍后重试');
+          } else {
+            setError(err?.error || `请求失败（${res.status}）`);
+          }
+          setLoading(false);
+          return;
+        }
+        const data = await res.json();
+        setStats(data?.data ?? null);
       } catch (err: any) {
+        setErrorStatus(null);
         if (err.message?.includes('FORBIDDEN') || err.message?.includes('403')) {
           setError('需要管理员权限');
         } else {
-          setError(err.message || '加载失败');
+          setError(err.message || '网络或服务异常，请稍后重试');
         }
       } finally {
         setLoading(false);
@@ -58,6 +67,9 @@ export default function DashboardPage() {
         <div className="max-w-2xl mx-auto text-center py-12">
           <p className="text-amber-600 mb-4">{error}</p>
           <Link href="/admin" className="text-[#6B5B95] underline">前往管理后台登录</Link>
+          {errorStatus === 404 && (
+            <p className="text-sm text-[#7a6f65] mt-4">若已登录仍出现此问题，请确认后端已部署并注册 dashboard 接口。</p>
+          )}
         </div>
       </div>
     );

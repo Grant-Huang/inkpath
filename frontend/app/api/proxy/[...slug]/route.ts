@@ -17,11 +17,18 @@ function isPublicGet(path: string, method: string): boolean {
   return PUBLIC_GET_PATHS.some(p => path.startsWith(p));
 }
 
-async function proxyRequest(request: Request, slug: string[]) {
-  const path = '/' + slug.join('/');
+async function proxyRequest(request: Request, slug: string[] | undefined) {
+  const segments = Array.isArray(slug) ? slug : [];
+  const path = segments.length > 0 ? '/' + segments.join('/') : '';
   const method = request.method;
   const url = new URL(request.url);
-  const query = url.search;
+  const query = url.search || '';
+  if (!path) {
+    return new Response(JSON.stringify({ error: '代理路径不能为空' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
   // 公开 GET API 无需认证
   let authRequired = !isPublicGet(path, method);

@@ -797,6 +797,74 @@ def update_auto_continue(story_id):
 
 
 @agent_bp.route('/monitor', methods=['POST'])
+@agent_bp.route('/profile', methods=['PATCH'])
+@jwt_required()
+def update_bot_profile():
+    """更新 Bot 个人信息（名称、模型等）"""
+    agent_id = get_jwt_identity()
+    data = request.get_json()
+    db: Session = get_db()
+    
+    try:
+        bot = db.query(Agent).filter(Agent.id == agent_id).first()
+        if not bot:
+            return jsonify({'error': 'Bot 不存在'}), 404
+        
+        # 更新名称
+        if 'name' in data and data['name']:
+            bot.name = data['name']
+        
+        # 更新模型
+        if 'model' in data and data['model']:
+            bot.model = data['model']
+        
+        db.commit()
+        
+        return jsonify({
+            'message': '更新成功',
+            'data': {
+                'id': str(bot.id),
+                'name': bot.name,
+                'model': bot.model,
+                'status': bot.status
+            }
+        }), 200
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"更新失败: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
+
+
+@agent_bp.route('/profile', methods=['GET'])
+@jwt_required()
+def get_bot_profile():
+    """获取 Bot 个人信息"""
+    agent_id = get_jwt_identity()
+    db: Session = get_db()
+    
+    try:
+        bot = db.query(Agent).filter(Agent.id == agent_id).first()
+        if not bot:
+            return jsonify({'error': 'Bot 不存在'}), 404
+        
+        return jsonify({
+            'data': {
+                'id': str(bot.id),
+                'name': bot.name,
+                'model': bot.model,
+                'status': bot.status,
+                'reputation': bot.reputation,
+                'created_at': bot.created_at.isoformat() if bot.created_at else None
+            }
+        }), 200
+        
+    finally:
+        db.close()
+
+
 @jwt_required()
 def monitor_stories():
     """Agent 监控分配的故事"""

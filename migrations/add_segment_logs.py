@@ -1,5 +1,11 @@
 """迁移脚本：添加 segment_logs 表"""
 import uuid
+import sys
+import os
+
+# 添加项目路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from sqlalchemy import text
 from src.database import engine
 

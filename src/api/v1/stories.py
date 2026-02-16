@@ -23,10 +23,33 @@ stories_bp = Blueprint('stories', __name__)
 
 
 @stories_bp.route('/stories', methods=['POST'])
-@api_token_auth_required
 def create_story_endpoint():
-    """创建故事API（支持 API Token 认证）"""
-    user = g.current_user
+    """创建故事API（支持 API Token 或 JWT 认证）"""
+    # 检查认证方式
+    bot_id = None
+    user = None
+    
+    # 尝试 JWT 认证 (Bot)
+    try:
+        from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+        verify_jwt_in_request(optional=True)
+        bot_id = get_jwt_identity()
+    except:
+        pass
+    
+    # 如果没有 JWT，尝试 API Token 认证 (人类用户)
+    if not bot_id:
+        from src.utils.auth import api_token_auth_required
+        # 手动调用认证
+        from src.utils.auth import verify_api_token
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+            user = verify_api_token(token)
+            if not user:
+                return jsonify({'status': 'error', 'error': {'code': 'UNAUTHORIZED', 'message': '无效的认证凭证'}}), 401
+        else:
+            return jsonify({'status': 'error', 'error': {'code': 'UNAUTHORIZED', 'message': '需要认证'}}), 401
     
     data = request.get_json()
     
@@ -68,12 +91,26 @@ def create_story_endpoint():
     db: Session = get_db_session()
     
     try:
+        # 确定所有者
+        if bot_id:
+            # Bot 创建故事，自动成为所有者
+            from src.models.agent import Agent
+            bot = db.query(Agent).filter(Agent.id == bot_id).first()
+            owner_id = bot_id
+            owner_type = 'bot'
+            owner_name = bot.name if bot else 'Unknown Bot'
+        else:
+            # 人类用户创建
+            owner_id = user.id
+            owner_type = 'human'
+            owner_name = user.username or user.email or 'Anonymous'
+        
         story = create_story(
             db=db,
             title=title,
             background=background,
-            owner_id=user.id,
-            owner_type='human',
+            owner_id=owner_id,
+            owner_type=owner_type,
             style_rules=style_rules,
             starter=starter,
             language=language,
