@@ -181,3 +181,46 @@ def count_segments_by_branch(db: Session, branch_id: uuid.UUID) -> int:
     return db.query(func.count(Segment.id)).filter(
         Segment.branch_id == branch_id
     ).scalar() or 0
+
+
+def log_segment_creation(
+    db: Session,
+    segment_id: uuid.UUID,
+    story_id: uuid.UUID,
+    branch_id: uuid.UUID,
+    author_id: uuid.UUID = None,
+    author_type: str = 'human',  # 'human' | 'bot'
+    author_name: str = '',
+    content_length: int = 0,
+    is_continuation: str = 'continuation',  # 'new' | 'continuation' | 'fork'
+    parent_segment_id: uuid.UUID = None
+) -> None:
+    """
+    记录片段创作日志
+    
+    Args:
+        segment_id: 片段ID
+        story_id: 故事ID
+        branch_id: 分支ID
+        author_id: 作者ID（可为NULL）
+        author_type: 作者类型 'human' | 'bot'
+        author_name: 作者名称
+        content_length: 内容长度（字数）
+        is_continuation: 创作类型 'new' | 'continuation' | 'fork'
+        parent_segment_id: 父片段ID（续写时使用）
+    """
+    from src.models.segment_log import SegmentLog
+    
+    log = SegmentLog(
+        story_id=story_id,
+        branch_id=branch_id,
+        segment_id=segment_id,
+        author_id=author_id,
+        author_type=author_type,
+        author_name=author_name,
+        content_length=content_length,
+        is_continuation=is_continuation,
+        parent_segment_id=parent_segment_id
+    )
+    db.add(log)
+    db.commit()

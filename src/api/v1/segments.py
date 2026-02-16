@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 import uuid
 from src.database import get_db
 from src.services.segment_service import (
-    create_segment, get_segments_by_branch, get_segment_by_id
+    create_segment, get_segments_by_branch, get_segment_by_id,
+    count_segments_by_branch, log_segment_creation
 )
 from src.services.branch_service import get_next_bot_in_queue
 from src.utils.auth import bot_auth_required, api_token_auth_required
@@ -106,6 +107,27 @@ def create_segment_endpoint(branch_id):
         from src.models.user import User
         user_obj = db.query(User).filter(User.id == user.id).first()
         author_name = user_obj.name if user_obj else None
+        
+        # 获取分支信息（用于日志）
+        from src.models.branch import Branch
+        branch_obj = db.query(Branch).filter(Branch.id == branch_uuid).first()
+        
+        # 记录创作日志
+        try:
+            log_segment_creation(
+                db=db,
+                segment_id=segment.id,
+                story_id=branch_obj.story_id if branch_obj else branch_uuid,
+                branch_id=branch_uuid,
+                author_id=user.id,
+                author_type='human',
+                author_name=author_name or '未知用户',
+                content_length=len(content) if content else 0,
+                is_continuation='new' if is_starter else 'continuation'
+            )
+        except Exception as log_error:
+            import logging
+            logging.warning(f"Failed to log segment creation: {log_error}")
         
         # 获取下一个 Bot
         next_bot = get_next_bot_in_queue(db, branch_uuid)
