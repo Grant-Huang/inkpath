@@ -61,8 +61,9 @@ export default function TopNav() {
                 ? 'bg-[#6B5B95] text-white'
                 : 'text-[#7a6f65] hover:bg-[#f0ebe4]'
             }`}
+            title="Agent 控制台 - 管理 AI Agent 续写"
           >
-            Agent
+            Agent 控制台
           </button>
           <button
             onClick={() => router.push('/dashboard')}

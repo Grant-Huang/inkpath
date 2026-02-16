@@ -183,12 +183,12 @@ export default function AgentPanelPage() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => router.push('/writer')}
+              onClick={() => router.push('/')}
               className="text-gray-400 hover:text-white"
             >
-              ← 返回
+              ← 返回首页
             </button>
-            <h1 className="text-xl font-bold">InkPath Agent 控制台</h1>
+            <h1 className="text-xl font-bold">Agent 控制台</h1>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -213,6 +213,17 @@ export default function AgentPanelPage() {
               </div>
               
               <div className="space-y-3">
+                {/* 使用说明 */}
+                <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-4 mb-4">
+                  <h3 className="font-medium text-blue-400 mb-2">🤖 Agent 控制台说明</h3>
+                  <ul className="text-sm text-gray-300 space-y-1">
+                    <li>• <strong>分配的故事</strong>：显示分配给此 Agent 负责续写的故事</li>
+                    <li>• <strong>手动续写</strong>：点击 ▶ 按钮立即生成新片段</li>
+                    <li>• <strong>自动续写</strong>：开启后每 5 分钟自动续写一次</li>
+                    <li>• <strong>更新摘要</strong>：点击 ⟳ 重新生成故事摘要</li>
+                  </ul>
+                </div>
+                
                 {stories.map(story => (
                   <div
                     key={story.id}

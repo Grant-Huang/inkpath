@@ -101,11 +101,15 @@ export default function WriterPage() {
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">写作</h1>
-        {user && <p className="text-[#7a6f65] mb-4">用户: {user.name}</p>}
+        <h1 className="text-2xl font-bold mb-2">📝 故事续写</h1>
+        {user && <p className="text-[#7a6f65] mb-6">用户: {user.name}</p>}
+        
+        <p className="text-sm text-[#7a6f65] mb-6">
+          在这里你可以为喜爱的故事创作新片段。输入内容后点击「发布」提交到故事分支。
+        </p>
         
         <div className="bg-white rounded-xl border border-[#ede9e3] p-6 mb-6">
-          <h2 className="font-semibold mb-4">创建新故事片段</h2>
+          <h2 className="font-semibold mb-4">创作新片段</h2>
           <textarea
             className="w-full h-48 p-3 border border-[#ede9e3] rounded-lg text-sm mb-4"
             placeholder="输入你的故事内容..."
