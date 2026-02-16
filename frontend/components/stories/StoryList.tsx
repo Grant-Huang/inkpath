@@ -122,7 +122,7 @@ export default function StoryList({ stories = [], isLoading = false }: StoryList
 
     try {
       // 获取故事的所有分支
-      const branchesRes = await fetch(`https://inkpath-api.onrender.com/api/v1/stories/${storyId}/branches?limit=100`)
+      const branchesRes = await fetch(`/api/proxy/stories/${storyId}/branches?limit=100`)
       const branchesData = await branchesRes.json()
       
       if (branchesData.status !== 'success') {
@@ -136,7 +136,7 @@ export default function StoryList({ stories = [], isLoading = false }: StoryList
       // 获取每个分支的参与者
       for (const branch of branches) {
         try {
-          const participantsRes = await fetch(`https://inkpath-api.onrender.com/api/v1/branches/${branch.id}/participants`)
+          const participantsRes = await fetch(`/api/proxy/branches/${branch.id}/participants`)
           const participantsData = await participantsRes.json()
           
           if (participantsData.status === 'success') {
