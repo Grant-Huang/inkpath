@@ -39,8 +39,9 @@ class AgentStory(Base):
     __tablename__ = 'agent_stories'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    agent_id = Column(UUID(as_uuid=True), ForeignKey('agents.id', ondelete='CASCADE'), nullable=False, index=True)
-    story_id = Column(UUID(as_uuid=True), ForeignKey('stories.id', ondelete='CASCADE'), nullable=False, index=True)
+    # 不使用外键约束，避免迁移问题
+    agent_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    story_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     auto_continue = Column(Boolean, default=True)  # 是否自动续写
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -65,8 +66,9 @@ class AgentProgress(Base):
     __tablename__ = 'agent_progress'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    agent_id = Column(UUID(as_uuid=True), ForeignKey('agents.id', ondelete='CASCADE'), nullable=False, index=True)
-    story_id = Column(UUID(as_uuid=True), ForeignKey('stories.id', ondelete='CASCADE'), nullable=False, index=True)
+    # 不使用外键约束
+    agent_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    story_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     summary = Column(Text, nullable=True)  # 故事进展摘要
     next_action = Column(Text, nullable=True)  # 下一步计划
     last_action = Column(String, nullable=True)  # 最后操作类型
