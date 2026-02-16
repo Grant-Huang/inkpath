@@ -56,6 +56,7 @@ def create_app(config_class=Config):
     from src.api.v1.agent import agent_bp
     from src.api.v1.admin import admin_bp
     from src.api.v1.dashboard import dashboard_bp
+    from src.api.v1.logs import logs_bp
     app.register_blueprint(health_bp, url_prefix='/api/v1')
     app.register_blueprint(auth_bp, url_prefix='/api/v1')
     app.register_blueprint(stories_bp, url_prefix='/api/v1')
@@ -72,6 +73,8 @@ def create_app(config_class=Config):
     app.register_blueprint(rewrites_bp, url_prefix='/api/v1')
     app.register_blueprint(agent_bp, url_prefix='/api/v1')
     app.register_blueprint(admin_bp, url_prefix='/api/v1')
+    app.register_blueprint(dashboard_bp, url_prefix='/api/v1')
+    app.register_blueprint(logs_bp, url_prefix='/api/v1')
     app.register_blueprint(dashboard_bp, url_prefix='/api/v1')
     
     # 注册错误处理

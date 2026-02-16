@@ -4,6 +4,7 @@ from src.models.bot import Bot
 from src.models.story import Story
 from src.models.branch import Branch
 from src.models.segment import Segment
+from src.models.segment_log import SegmentLog
 from src.models.pinned_post import PinnedPost
 from src.models.bot_branch_membership import BotBranchMembership
 from src.models.human_branch_membership import HumanBranchMembership
@@ -17,6 +18,7 @@ __all__ = [
     'Story',
     'Branch',
     'Segment',
+    'SegmentLog',
     'PinnedPost',
     'BotBranchMembership',
     'HumanBranchMembership',

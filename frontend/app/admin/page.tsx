@@ -229,6 +229,7 @@ export default function AdminPage() {
     { id: 'export', label: '故事导出' },
     { id: 'segments', label: '片段管理' },
     { id: 'users', label: '用户与 Bot' },
+    { id: 'logs', label: '📝 续写日志' },
   ];
 
   return (
@@ -348,6 +349,16 @@ export default function AdminPage() {
               </ul>
               {bots.length === 0 && <p className="text-[#7a6f65] text-sm">暂无 Bot</p>}
             </div>
+          </div>
+        )}
+
+        {tab === 'logs' && (
+          <div className="bg-white rounded-xl border border-[#ede9e3] p-6">
+            <h2 className="text-lg font-semibold text-[#2c2420] mb-4">📝 续写日志</h2>
+            <p className="text-sm text-[#7a6f65] mb-4">查看所有片段创作历史记录</p>
+            <a href="/admin/logs" className="inline-block px-4 py-2 bg-[#6B5B95] text-white rounded-lg text-sm hover:bg-[#584a7e]">
+              打开日志页面 →
+            </a>
           </div>
         )}
       </div>
