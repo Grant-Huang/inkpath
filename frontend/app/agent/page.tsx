@@ -38,7 +38,7 @@ export default function AgentPanelPage() {
   useEffect(() => {
     const token = localStorage.getItem('inkpath_token');
     if (!token) {
-      router.push('/login');
+      router.push('/');
       return;
     }
     fetchAgentData();

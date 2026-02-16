@@ -139,7 +139,7 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
       if (msg.includes('登录') || msg.includes('认证') || msg.includes('Token') || msg.includes('401')) {
         localStorage.removeItem('jwt_token')
         alert(msg + '\n\n请重新登录后再创建故事。')
-        router.push('/login')
+        router.push('/')
       }
     },
   })
@@ -239,7 +239,7 @@ export default function CreateStoryModal({ onClose }: CreateStoryModalProps) {
     const token = localStorage.getItem('jwt_token')
     if (!token) {
       alert('请先登录再创建故事')
-      router.push('/login')
+      router.push('/')
       return
     }
     

@@ -1,6 +1,7 @@
 """分支管理API"""
 import gzip
 import json
+import logging
 from flask import Blueprint, request, jsonify, g, current_app, Response
 from sqlalchemy.orm import Session
 import uuid
@@ -495,60 +496,75 @@ def list_branches(story_id):
     offset = int(request.args.get('offset', 0))
     sort = request.args.get('sort', 'activity')
     include_all = request.args.get('include_all', 'false').lower() == 'true'
-    
-    db: Session = get_db_session()
-    branches, total = get_branches_by_story(
-        db=db,
-        story_id=story_uuid,
-        limit=limit,
-        offset=offset,
-        sort=sort,
-        include_all=include_all
-    )
-    
-    # 构建响应数据
-    from src.services.activity_service import get_activity_score_cached
-    branches_data = []
-    for branch in branches:
-        segments_count = db.query(Segment).filter(Segment.branch_id == branch.id).count()
-        active_bots_count = db.query(BotBranchMembership).filter(
-            BotBranchMembership.branch_id == branch.id
-        ).count()
-        
-        # 获取活跃度得分
-        try:
-            activity_score = get_activity_score_cached(db, branch.id)
-        except Exception as e:
-            activity_score = 0.0
-        
-        branches_data.append({
-            'id': str(branch.id),
-            'title': branch.title,
-            'description': branch.description,
-            'parent_branch_id': str(branch.parent_branch) if branch.parent_branch else None,
-            'creator_bot_id': str(branch.creator_bot_id) if branch.creator_bot_id else None,
-            'segments_count': segments_count,
-            'active_bots_count': active_bots_count,
-            'activity_score': activity_score,
-            'created_at': branch.created_at.isoformat() if branch.created_at else None
-        })
-    
-    # 如果按活跃度排序，对结果进行排序
-    if sort == 'activity':
-        branches_data.sort(key=lambda x: x['activity_score'], reverse=True)
-    
-    return jsonify({
-        'status': 'success',
-        'data': {
-            'branches': branches_data,
-            'pagination': {
-                'limit': limit,
-                'offset': offset,
-                'total': total,
-                'has_more': (offset + len(branches)) < total
+
+    try:
+        db: Session = get_db_session()
+        branches, total = get_branches_by_story(
+            db=db,
+            story_id=story_uuid,
+            limit=limit,
+            offset=offset,
+            sort=sort,
+            include_all=include_all
+        )
+
+        # 构建响应数据
+        from src.services.activity_service import get_activity_score_cached
+        branches_data = []
+        for branch in branches:
+            segments_count = db.query(Segment).filter(Segment.branch_id == branch.id).count()
+            active_bots_count = db.query(BotBranchMembership).filter(
+                BotBranchMembership.branch_id == branch.id
+            ).count()
+
+            # 获取活跃度得分
+            try:
+                activity_score = get_activity_score_cached(db, branch.id)
+            except Exception:
+                activity_score = 0.0
+
+            branches_data.append({
+                'id': str(branch.id),
+                'title': branch.title,
+                'description': branch.description,
+                'parent_branch_id': str(branch.parent_branch) if branch.parent_branch else None,
+                'creator_bot_id': str(branch.creator_bot_id) if branch.creator_bot_id else None,
+                'segments_count': segments_count,
+                'active_bots_count': active_bots_count,
+                'activity_score': activity_score,
+                'created_at': branch.created_at.isoformat() if branch.created_at else None
+            })
+
+        # 如果按活跃度排序，对结果进行排序
+        if sort == 'activity':
+            branches_data.sort(key=lambda x: x['activity_score'], reverse=True)
+
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'branches': branches_data,
+                'pagination': {
+                    'limit': limit,
+                    'offset': offset,
+                    'total': total,
+                    'has_more': (offset + len(branches)) < total
+                }
             }
-        }
-    }), 200
+        }), 200
+    except Exception as e:
+        logging.exception('list_branches failed: story_id=%s', story_id)
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'branches': [],
+                'pagination': {
+                    'limit': limit,
+                    'offset': offset,
+                    'total': 0,
+                    'has_more': False
+                }
+            }
+        }), 200
 
 
 @branches_bp.route('/stories/<story_id>/branches/tree', methods=['GET'])

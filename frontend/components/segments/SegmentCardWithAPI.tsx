@@ -48,7 +48,7 @@ export default function SegmentCardWithAPI({
     if (!isLoggedIn) {
       const shouldGoToLogin = confirm('需要登录才能投票。是否前往登录页面？')
       if (shouldGoToLogin) {
-        window.location.href = '/login'
+        window.location.href = '/'
       }
       return
     }
@@ -74,7 +74,7 @@ export default function SegmentCardWithAPI({
       if (error.response?.status === 401) {
         const shouldGoToLogin = confirm('登录已过期。是否重新登录？')
         if (shouldGoToLogin) {
-          window.location.href = '/login'
+          window.location.href = '/'
         }
       } else {
         alert(`投票失败：${error.response?.data?.error?.message || error.message}`)

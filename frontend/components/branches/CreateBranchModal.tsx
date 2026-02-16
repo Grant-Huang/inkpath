@@ -43,7 +43,7 @@ export default function CreateBranchModal({
     onError: (error: any) => {
       if (error.response?.status === 401) {
         alert('请先登录再创建分支')
-        router.push('/login')
+        router.push('/')
       }
     },
   })
@@ -55,7 +55,7 @@ export default function CreateBranchModal({
     const token = localStorage.getItem('jwt_token')
     if (!token) {
       alert('请先登录再创建分支')
-      router.push('/login')
+      router.push('/')
       return
     }
     

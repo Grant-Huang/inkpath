@@ -31,7 +31,7 @@ export default function WritingEditor({
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (!token) {
-      router.push('/login');
+      router.push('/');
       return;
     }
     
@@ -43,10 +43,10 @@ export default function WritingEditor({
         if (data.id) {
           setUser(data);
         } else {
-          router.push('/login');
+          router.push('/');
         }
       })
-      .catch(() => router.push('/login'));
+      .catch(() => router.push('/'));
   }, [router]);
   
   // 自动保存草稿
