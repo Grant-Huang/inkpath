@@ -38,40 +38,11 @@ def call_llm(prompt: str, bot_model: str = "qwen2.5:7b") -> str:
     """
     调用 LLM 生成续写内容
     
-    优先级:
-    1. OpenAI API (如果配置了 OPENAI_API_KEY)
-    2. Google Gemini API (如果配置了 GEMINI_API_KEY)
-    3. MiniMax API (如果配置了)
+    注意：InkPath 后端不负责调用 LLM，这个功能由 Agent 客户端负责
+    此函数仅作为存根，如果被调用会抛出异常
     """
-    # 1. 尝试 OpenAI
-    openai_key = current_app.config.get('OPENAI_API_KEY', '')
-    openai_url = current_app.config.get('OPENAI_API_URL', 'https://api.openai.com/v1')
-    
-    if openai_key:
-        try:
-            # 选择模型
-            model = "gpt-4o-mini"  # 使用便宜的模型
-            response = requests.post(
-                f"{openai_url}/chat/completions",
-                headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
-                json={
-                    "model": model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.7,
-                    "max_tokens": 1000
-                },
-                timeout=120
-            )
-            if response.status_code == 200:
-                data = response.json()
-                return data["choices"][0]["message"]["content"].strip()
-            else:
-                logger.warning(f"OpenAI 返回错误: {response.status_code}")
-        except Exception as e:
-            logger.warning(f"OpenAI 调用失败: {e}")
-    
-    # 2. 尝试 Google Gemini
-    gemini_key = current_app.config.get('GEMINI_API_KEY', '')
+    # 后端不应该调用 LLM - 这是 Agent 的职责
+    raise Exception("后端不应调用 LLM，请使用 Agent 客户端进行续写")
     if gemini_key:
         try:
             import json

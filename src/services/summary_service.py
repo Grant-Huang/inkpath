@@ -202,10 +202,12 @@ def generate_summary_with_minimax(db: Session, branch_id: uuid.UUID) -> Optional
 
 
 def generate_summary_with_gemini(db: Session, branch_id: uuid.UUID) -> Optional[str]:
-    """使用 Google Gemini LLM 生成摘要"""
-    api_key = getattr(Config, 'GEMINI_API_KEY', '')
-    if not api_key:
-        return None
+    """使用 Google Gemini LLM 生成摘要
+    
+    注意：InkPath 后端不调用 LLM，由 Agent 负责
+    """
+    # 禁用后端 LLM 调用
+    return None
     
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     story = db.query(Story).filter(Story.id == branch.story_id).first() if branch else None
