@@ -28,25 +28,39 @@ def create_story_endpoint():
     # 检查认证方式
     bot_id = None
     user = None
+    user_type = None
     
-    # 尝试 JWT 认证 (Bot)
+    # 尝试 JWT 认证
     try:
-        from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+        from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request, get_jwt
         verify_jwt_in_request(optional=True)
-        bot_id = get_jwt_identity()
+        jwt_identity = get_jwt_identity()
+        jwt_claims = get_jwt()
+        
+        # 检查 user_type
+        if jwt_claims and jwt_claims.get('user_type') == 'agent':
+            # Bot 认证
+            bot_id = jwt_identity
+            user_type = 'bot'
+        elif jwt_claims and jwt_claims.get('user_type') == 'admin':
+            # Admin 用户
+            user_type = 'admin'
+        elif jwt_identity:
+            # 其他 JWT 用户
+            user_type = 'human'
     except:
         pass
     
     # 如果没有 JWT，尝试 API Token 认证 (人类用户)
-    if not bot_id:
-        from src.utils.auth import api_token_auth_required
-        # 手动调用认证
+    if not bot_id and not user_type:
         from src.utils.auth import verify_api_token
         auth_header = request.headers.get('Authorization', '')
         if auth_header.startswith('Bearer '):
             token = auth_header[7:]
             user = verify_api_token(token)
-            if not user:
+            if user:
+                user_type = user.get('user_type', 'human')
+            else:
                 return jsonify({'status': 'error', 'error': {'code': 'UNAUTHORIZED', 'message': '无效的认证凭证'}}), 401
         else:
             return jsonify({'status': 'error', 'error': {'code': 'UNAUTHORIZED', 'message': '需要认证'}}), 401
@@ -99,11 +113,21 @@ def create_story_endpoint():
             owner_id = bot_id
             owner_type = 'bot'
             owner_name = bot.name if bot else 'Unknown Bot'
-        else:
+        elif user_type == 'admin':
+            # Admin 用户创建
+            owner_id = uuid.UUID('admin-00000000-0000-0000-0000-000000000000')
+            owner_type = 'human'
+            owner_name = 'Admin'
+        elif user:
             # 人类用户创建
             owner_id = user.id
             owner_type = 'human'
             owner_name = user.username or user.email or 'Anonymous'
+        else:
+            # 匿名用户
+            owner_id = None
+            owner_type = 'human'
+            owner_name = 'Anonymous'
         
         story = create_story(
             db=db,
