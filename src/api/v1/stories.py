@@ -294,7 +294,7 @@ def list_branches(story_id):
     from src.services.branch_service import get_branches_by_story
     
     db: Session = get_db_session()
-    branches = get_branches_by_story(db, story_uuid)
+    branches, _ = get_branches_by_story(db, story_uuid)
     
     return jsonify({
         'status': 'success',
