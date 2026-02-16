@@ -37,40 +37,88 @@ def call_llm(prompt: str, bot_model: str = "qwen2.5:7b") -> str:
     """
     调用 LLM 生成续写内容
     
-    支持本地 Ollama (Qwen) 或 OpenAI 兼容 API
+    优先级:
+    1. OpenAI API (如果配置了 OPENAI_API_KEY)
+    2. Google Gemini API (如果配置了 GEMINI_API_KEY)
+    3. MiniMax API (如果配置了)
     """
-    # 优先使用本地 Ollama
-    ollama_url = current_app.config.get('OLLAMA_URL', 'http://localhost:11434/v1')
-    
-    try:
-        # 尝试本地 Ollama
-        response = requests.post(
-            f"{ollama_url}/chat/completions",
-            json={
-                "model": bot_model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.7,
-                "max_tokens": 1000
-            },
-            timeout=120
-        )
-        if response.status_code == 200:
-            data = response.json()
-            return data["choices"][0]["message"]["content"].strip()
-    except Exception as e:
-        logger.warning(f"Ollama 调用失败: {e}")
-    
-    # 如果本地失败，尝试 OpenAI 兼容 API
+    # 1. 尝试 OpenAI
     openai_key = current_app.config.get('OPENAI_API_KEY', '')
     openai_url = current_app.config.get('OPENAI_API_URL', 'https://api.openai.com/v1')
     
     if openai_key:
         try:
+            # 选择模型
+            model = "gpt-4o-mini"  # 使用便宜的模型
             response = requests.post(
                 f"{openai_url}/chat/completions",
-                headers={"Authorization": f"Bearer {openai_key}"},
+                headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
                 json={
-                    "model": "gpt-4o",
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.7,
+                    "max_tokens": 1000
+                },
+                timeout=120
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return data["choices"][0]["message"]["content"].strip()
+            else:
+                logger.warning(f"OpenAI 返回错误: {response.status_code}")
+        except Exception as e:
+            logger.warning(f"OpenAI 调用失败: {e}")
+    
+    # 2. 尝试 Google Gemini
+    gemini_key = current_app.config.get('GEMINI_API_KEY', '')
+    if gemini_key:
+        try:
+            import json
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
+            response = requests.post(
+                gemini_url,
+                headers={"Content-Type": "application/json"},
+                json={
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {
+                        "temperature": 0.7,
+                        "maxOutputTokens": 1000
+                    }
+                },
+                timeout=120
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+            else:
+                logger.warning(f"Gemini 返回错误: {response.status_code}")
+        except Exception as e:
+            logger.warning(f"Gemini 调用失败: {e}")
+    
+    # 3. 尝试 MiniMax
+    minimax_key = current_app.config.get('MINIMAX_API_KEY', '')
+    minimax_secret = current_app.config.get('MINIMAX_API_SECRET', '')
+    if minimax_key and minimax_secret:
+        try:
+            import time
+            import hmac
+            import hashlib
+            # MiniMax 需要签名
+            timestamp = str(int(time.time()))
+            signature = hmac.new(
+                minimax_secret.encode(),
+                f"{timestamp}.{minimax_key}".encode(),
+                hashlib.sha256
+            ).hexdigest()
+            
+            response = requests.post(
+                "https://api.minimax.chat/v1/text/chatcompletion_pro",
+                headers={
+                    "Authorization": f"Bearer {minimax_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "abab6.5s-chat",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.7,
                     "max_tokens": 1000
@@ -81,9 +129,9 @@ def call_llm(prompt: str, bot_model: str = "qwen2.5:7b") -> str:
                 data = response.json()
                 return data["choices"][0]["message"]["content"].strip()
         except Exception as e:
-            logger.warning(f"OpenAI 调用失败: {e}")
+            logger.warning(f"MiniMax 调用失败: {e}")
     
-    raise Exception("无法调用 LLM，请检查配置")
+    raise Exception("无法调用 LLM，请检查配置 (OPENAI_API_KEY 或 GEMINI_API_KEY)")
 
 
 # =====================================================
