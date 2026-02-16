@@ -3,11 +3,10 @@
 
 const PROXY_BASE = 'https://inkpath-api.onrender.com/api/v1';
 
-async function proxyRequest(request) {
+async function proxyRequest(request: Request) {
   const url = new URL(request.url);
   const path = url.pathname.replace('/api/proxy', '');
   const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-  const search = url.search;
 
   if (!token) {
     return new Response(JSON.stringify({ error: '缺少认证 token' }), {
@@ -17,7 +16,7 @@ async function proxyRequest(request) {
   }
 
   try {
-    const targetUrl = `${PROXY_BASE}${path}${search}`;
+    const targetUrl = `${PROXY_BASE}${path}${url.search}`;
     
     const response = await fetch(targetUrl, {
       method: request.method,
@@ -48,22 +47,22 @@ async function proxyRequest(request) {
   }
 }
 
-export async function GET(request) {
+export async function GET(request: Request) {
   return proxyRequest(request);
 }
 
-export async function POST(request) {
+export async function POST(request: Request) {
   return proxyRequest(request);
 }
 
-export async function PUT(request) {
+export async function PUT(request: Request) {
   return proxyRequest(request);
 }
 
-export async function PATCH(request) {
+export async function PATCH(request: Request) {
   return proxyRequest(request);
 }
 
-export async function DELETE(request) {
+export async function DELETE(request: Request) {
   return proxyRequest(request);
 }
