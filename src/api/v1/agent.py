@@ -169,7 +169,7 @@ def get_home_data():
 def get_stories_list():
     """
     获取分配给 Agent 的故事列表（分页）
-    包括：1) 分配的故事 2) 自己创建的故事
+    仅返回 Agent 自己创建的故事
     """
     agent_id = get_jwt_identity()
     db = next(get_db())
@@ -177,74 +177,40 @@ def get_stories_list():
     try:
         page = request.args.get('page', 1, type=int)
         limit = min(request.args.get('limit', 20, type=int), 100)
-        status_filter = request.args.get('status', 'all')
         
-        stories = []
-        
-        # 1. 获取 Agent 分配的故事
-        try:
-            agent_stories = db.query(AgentStory).filter(AgentStory.agent_id == agent_id).all()
-            for as_record in agent_stories:
-                progress = db.query(AgentProgress).filter(
-                    AgentProgress.agent_id == agent_id,
-                    AgentProgress.story_id == as_record.story_id
-                ).first()
-                
-                auto_continue = as_record.auto_continue
-                
-                if status_filter == 'running' and not auto_continue:
-                    continue
-                if status_filter == 'idle' and auto_continue:
-                    continue
-                    
-                story = db.query(Story).filter(Story.id == as_record.story_id).first()
-                if story:
-                    stories.append({
-                        'id': str(story.id),
-                        'title': story.title,
-                        'owner_type': story.owner_type,
-                        'auto_continue': auto_continue,
-                        'progress': {
-                            'summary': progress.summary if progress else None,
-                            'next_action': progress.next_action if progress else None,
-                            'last_action': progress.last_action if progress else None,
-                            'segments_count': progress.segments_count if progress else 0
-                        } if progress else None
-                    })
-        except Exception as e:
-            logger.warning(f"查询分配故事失败: {e}")
-        
-        # 2. 获取 Agent 自己创建的故事
+        # 只获取 Agent 自己创建的故事
         try:
             owned_stories = db.query(Story).filter(
                 Story.owner_id == agent_id,
                 Story.owner_type == 'bot'
             ).all()
-            
-            for story in owned_stories:
-                # 跳过已添加的
-                if any(s['id'] == str(story.id) for s in stories):
-                    continue
-                    
+        except Exception as e:
+            logger.warning(f"查询故事失败: {e}")
+            owned_stories = []
+        
+        stories = []
+        for story in owned_stories:
+            progress = None
+            try:
                 progress = db.query(AgentProgress).filter(
                     AgentProgress.agent_id == agent_id,
                     AgentProgress.story_id == story.id
                 ).first()
-                
-                stories.append({
-                    'id': str(story.id),
-                    'title': story.title,
-                    'owner_type': story.owner_type,
-                    'auto_continue': True,  # 自己创建的故事默认自动续写
-                    'progress': {
-                        'summary': progress.summary if progress else None,
-                        'next_action': progress.next_action if progress else None,
-                        'last_action': progress.last_action if progress else None,
-                        'segments_count': progress.segments_count if progress else 0
-                    } if progress else None
-                })
-        except Exception as e:
-            logger.warning(f"查询拥有故事失败: {e}")
+            except:
+                pass
+            
+            stories.append({
+                'id': str(story.id),
+                'title': story.title,
+                'owner_type': story.owner_type,
+                'auto_continue': True,
+                'progress': {
+                    'summary': progress.summary if progress else None,
+                    'next_action': progress.next_action if progress else None,
+                    'last_action': progress.last_action if progress else None,
+                    'segments_count': progress.segments_count if progress else 0
+                } if progress else None
+            })
         
         # 分页
         total = len(stories)
@@ -264,6 +230,9 @@ def get_stories_list():
             }
         }), 200
         
+    except Exception as e:
+        logger.error(f"获取故事列表失败: {e}")
+        return jsonify({'error': str(e)}), 500
     finally:
         db.close()
 
