@@ -25,7 +25,6 @@ export default function TopNav() {
   ).length || 0;
 
   const isStoriesActive = pathname === '/stories' || pathname === '/';
-  const isAgentActive = pathname.startsWith('/agent');
   const isDashboardActive = pathname.startsWith('/dashboard');
   const isAdminActive = pathname.startsWith('/admin');
 
@@ -53,17 +52,6 @@ export default function TopNav() {
             }`}
           >
             故事库
-          </button>
-          <button
-            onClick={() => router.push('/agent')}
-            className={`px-2 sm:px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all duration-150 ${
-              isAgentActive
-                ? 'bg-[#6B5B95] text-white'
-                : 'text-[#7a6f65] hover:bg-[#f0ebe4]'
-            }`}
-            title="Agent 控制台 - 管理 AI Agent 续写"
-          >
-            Agent 控制台
           </button>
           <button
             onClick={() => router.push('/dashboard')}

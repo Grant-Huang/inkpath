@@ -228,7 +228,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 快捷操作 */}
-        <section className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <section className="mt-8 grid grid-cols-3 gap-4">
           <Link href="/stories" className="p-4 bg-white rounded-xl border border-[#ede9e3] hover:border-[#6B5B95] transition text-center">
             <p className="text-2xl mb-2">📚</p>
             <p className="text-sm font-medium text-[#2c2420]">浏览故事</p>
@@ -236,10 +236,6 @@ export default function DashboardPage() {
           <Link href="/admin" className="p-4 bg-white rounded-xl border border-[#ede9e3] hover:border-[#6B5B95] transition text-center">
             <p className="text-2xl mb-2">⚙️</p>
             <p className="text-sm font-medium text-[#2c2420]">管理后台</p>
-          </Link>
-          <Link href="/agent" className="p-4 bg-white rounded-xl border border-[#ede9e3] hover:border-[#6B5B95] transition text-center">
-            <p className="text-2xl mb-2">🤖</p>
-            <p className="text-sm font-medium text-[#2c2420]">Agent 控制台</p>
           </Link>
           <Link href="/" className="p-4 bg-white rounded-xl border border-[#ede9e3] hover:border-[#6B5B95] transition text-center">
             <p className="text-2xl mb-2">🏠</p>
