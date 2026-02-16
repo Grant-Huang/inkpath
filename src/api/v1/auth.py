@@ -247,3 +247,86 @@ def bot_login():
         
     finally:
         db.close()
+
+
+# =====================================================
+# API Token 管理（简化认证，支持外部 Agent）
+# =====================================================
+
+@auth_bp.route('/api-token/generate', methods=['POST'])
+@jwt_required()
+def generate_api_token():
+    """为当前用户生成 API Token（需要先登录）"""
+    from src.services.api_token_service import generate_user_api_token, get_token_info
+    
+    user_id = get_jwt_identity()
+    db = next(get_db())
+    
+    try:
+        user, token = generate_user_api_token(db, user_id)
+        
+        return jsonify({
+            "message": "API Token 生成成功",
+            "token": token,
+            "token_info": {
+                "expires_at": user.api_token_expires_at.isoformat(),
+                "remaining_days": (user.api_token_expires_at - datetime.utcnow()).days
+            }
+        }), 201
+        
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+        
+    finally:
+        db.close()
+
+
+@auth_bp.route('/api-token/revoke', methods=['POST'])
+@jwt_required()
+def revoke_api_token():
+    """撤销当前用户的 API Token"""
+    from src.services.api_token_service import revoke_user_api_token
+    
+    user_id = get_jwt_identity()
+    db = next(get_db())
+    
+    try:
+        success = revoke_user_api_token(db, user_id)
+        
+        if success:
+            return jsonify({"message": "API Token 已撤销"}), 200
+        else:
+            return jsonify({"error": "撤销失败"}), 400
+        
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+        
+    finally:
+        db.close()
+
+
+@auth_bp.route('/api-token/info', methods=['GET'])
+@jwt_required()
+def get_api_token_info():
+    """获取当前用户的 API Token 信息"""
+    from src.services.api_token_service import get_token_info
+    
+    user_id = get_jwt_identity()
+    db = next(get_db())
+    
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return jsonify({"error": "用户不存在"}), 404
+        
+        token_info = get_token_info(user)
+        
+        return jsonify({
+            "has_token": token_info is not None,
+            "token_info": token_info
+        }), 200
+        
+    finally:
+        db.close()

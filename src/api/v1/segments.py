@@ -7,7 +7,7 @@ from src.services.segment_service import (
     create_segment, get_segments_by_branch, get_segment_by_id
 )
 from src.services.branch_service import get_next_bot_in_queue
-from src.utils.auth import bot_auth_required
+from src.utils.auth import bot_auth_required, api_token_auth_required
 from src.utils.rate_limit import create_segment_rate_limit
 
 
@@ -21,11 +21,44 @@ def get_db_session():
 segments_bp = Blueprint('segments', __name__)
 
 
+def _create_segment_inner(db, branch_uuid, user_id=None, bot_id=None, bot_name=None, bot_model=None, content=None, is_starter=False):
+    """内部创建片段逻辑"""
+    from src.models.bot import Bot
+    
+    # 确定作者信息
+    author_id = bot_id or user_id
+    author_name = bot_name
+    author_model = bot_model
+    
+    # 如果有 user_id，尝试获取用户信息
+    if user_id:
+        from src.models.user import User
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            author_name = user.name or user.email
+            author_model = None  # 用户不是 Bot，没有 model
+    
+    # 如果有 bot_id，尝试获取 Bot 信息
+    if bot_id and not bot_name:
+        bot = db.query(Bot).filter(Bot.id == bot_id).first()
+        if bot:
+            author_name = bot.name
+            author_model = bot.model
+    
+    return create_segment(
+        db=db,
+        branch_id=branch_uuid,
+        bot_id=author_id,
+        content=content,
+        is_starter=is_starter
+    )
+
+
 @segments_bp.route('/branches/<branch_id>/segments', methods=['POST'])
-@bot_auth_required
+@api_token_auth_required
 def create_segment_endpoint(branch_id):
-    """提交续写API（需要Bot认证）"""
-    bot = g.current_bot
+    """提交续写API（支持 API Token 认证）"""
+    user = g.current_user
     
     try:
         branch_uuid = uuid.UUID(branch_id)
@@ -38,9 +71,9 @@ def create_segment_endpoint(branch_id):
             }
         }), 400
     
-    # 检查速率限制（每分支每小时2次）
+    # 检查速率限制（每用户每小时5次）
     from src.utils.rate_limit_helper import check_rate_limit
-    rate_limit_result = check_rate_limit('segment:create', bot_id=bot.id, branch_id=branch_uuid)
+    rate_limit_result = check_rate_limit('segment:create', user_id=user.id)
     if rate_limit_result:
         return rate_limit_result
     
@@ -56,23 +89,28 @@ def create_segment_endpoint(branch_id):
         }), 400
     
     content = data.get('content')
-    is_starter = data.get('is_starter', False)  # 开篇跳过长度验证
+    is_starter = data.get('is_starter', False)
     
     db: Session = get_db_session()
     
     try:
-        segment = create_segment(
+        segment = _create_segment_inner(
             db=db,
-            branch_id=branch_uuid,
-            bot_id=bot.id,
+            branch_uuid=branch_uuid,
+            user_id=user.id,
             content=content,
             is_starter=is_starter
         )
         
-        # 获取下一个Bot
+        # 获取作者信息
+        from src.models.user import User
+        user_obj = db.query(User).filter(User.id == user.id).first()
+        author_name = user_obj.name if user_obj else None
+        
+        # 获取下一个 Bot
         next_bot = get_next_bot_in_queue(db, branch_uuid)
         
-        # 通知下一个Bot（异步，不阻塞）
+        # 通知下一个 Bot（异步）
         if next_bot and next_bot.webhook_url:
             try:
                 from src.utils.notification_queue import enqueue_your_turn_notification
@@ -81,19 +119,17 @@ def create_segment_endpoint(branch_id):
                     branch_id=str(branch_uuid)
                 )
             except Exception as e:
-                # 通知失败不影响续写段的创建
                 import logging
-                logging.warning(f"Failed to enqueue your_turn notification for bot {next_bot.id}: {str(e)}")
+                logging.warning(f"Failed to enqueue your_turn notification: {str(e)}")
         
         response_data = {
             'segment': {
                 'id': str(segment.id),
                 'content': segment.content,
                 'sequence_order': segment.sequence_order,
-                'bot_id': str(segment.bot_id) if segment.bot_id else None,
-                'bot_name': bot.name if bot else None,
-                'bot_model': bot.model if bot else None,
-                'coherence_score': float(segment.coherence_score) if segment.coherence_score else None,
+                'author_id': str(user.id),
+                'author_name': author_name,
+                'author_type': 'user',
                 'created_at': segment.created_at.isoformat() if segment.created_at else None
             }
         }
@@ -104,8 +140,6 @@ def create_segment_endpoint(branch_id):
                 'name': next_bot.name,
                 'model': next_bot.model
             }
-        else:
-            response_data['next_bot'] = None
         
         return jsonify({
             'status': 'success',
@@ -121,7 +155,6 @@ def create_segment_endpoint(branch_id):
             }
         }), 400
     except Exception as e:
-        # 检查是否是UnprocessableEntity（连续性校验失败）
         from werkzeug.exceptions import UnprocessableEntity
         if isinstance(e, UnprocessableEntity):
             return jsonify({
@@ -145,7 +178,7 @@ def create_segment_endpoint(branch_id):
 
 @segments_bp.route('/branches/<branch_id>/segments', methods=['GET'])
 def list_segments(branch_id):
-    """获取续写列表API"""
+    """获取续写列表API（公开，无需认证）"""
     try:
         branch_uuid = uuid.UUID(branch_id)
     except ValueError:
