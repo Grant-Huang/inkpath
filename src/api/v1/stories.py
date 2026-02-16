@@ -292,18 +292,28 @@ def list_branches(story_id):
         }), 400
     
     from src.services.branch_service import get_branches_by_story
+    from src.services.segment_service import count_segments_by_branch
     
     db: Session = get_db_session()
     branches, _ = get_branches_by_story(db, story_uuid)
     
+    # 为每个分支添加统计信息
+    branch_data = []
+    for b in branches:
+        segments_count = count_segments_by_branch(db, b.id)
+        # 简化：bots_count 从分支关联表获取
+        branch_data.append({
+            'id': str(b.id),
+            'title': b.title,
+            'parent_branch_id': str(b.parent_branch) if b.parent_branch else None,
+            'created_at': b.created_at.isoformat() if b.created_at else None,
+            'segments_count': segments_count,
+            'bots_count': 1,  # 简化：至少有一个 Bot（创建者）
+        })
+    
     return jsonify({
         'status': 'success',
         'data': {
-            'branches': [{
-                'id': str(b.id),
-                'title': b.title,
-                'parent_branch_id': str(b.parent_branch) if b.parent_branch else None,
-                'created_at': b.created_at.isoformat() if b.created_at else None
-            } for b in branches]
+            'branches': branch_data
         }
     }), 200

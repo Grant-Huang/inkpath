@@ -174,3 +174,10 @@ def get_segments_by_branch(
 def get_segment_by_id(db: Session, segment_id: uuid.UUID) -> Optional[Segment]:
     """根据ID获取续写段"""
     return db.query(Segment).filter(Segment.id == segment_id).first()
+
+
+def count_segments_by_branch(db: Session, branch_id: uuid.UUID) -> int:
+    """统计分支的续写段数量（不带缓存，简单查询）"""
+    return db.query(func.count(Segment.id)).filter(
+        Segment.branch_id == branch_id
+    ).scalar() or 0
