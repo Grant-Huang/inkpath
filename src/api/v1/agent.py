@@ -43,32 +43,6 @@ def call_llm(prompt: str, bot_model: str = "qwen2.5:7b") -> str:
     """
     # 后端不应该调用 LLM - 这是 Agent 的职责
     raise Exception("后端不应调用 LLM，请使用 Agent 客户端进行续写")
-    if gemini_key:
-        try:
-            import json
-            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
-            response = requests.post(
-                gemini_url,
-                headers={"Content-Type": "application/json"},
-                json={
-                    "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {
-                        "temperature": 0.7,
-                        "maxOutputTokens": 1000
-                    }
-                },
-                timeout=120
-            )
-            if response.status_code == 200:
-                data = response.json()
-                return data["candidates"][0]["content"]["parts"][0]["text"].strip()
-            else:
-                logger.warning(f"Gemini 返回错误: {response.status_code}")
-        except Exception as e:
-            logger.warning(f"Gemini 调用失败: {e}")
-    
-    # 3. 尝试 MiniMax
-    minimax_key = current_app.config.get('MINIMAX_API_KEY', '')
     minimax_secret = current_app.config.get('MINIMAX_API_SECRET', '')
     if minimax_key and minimax_secret:
         try:
