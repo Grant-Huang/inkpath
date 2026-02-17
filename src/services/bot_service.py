@@ -22,21 +22,17 @@ def hash_api_key(api_key: str) -> str:
 
 
 def verify_api_key(api_key: str, hashed: str) -> bool:
-    """验证API Key - 支持 bcrypt 和 SHA256"""
+    """验证API Key - 支持 bcrypt"""
+    if not api_key or not hashed:
+        return False
+    
     # 尝试 bcrypt 验证
     try:
         if hashed.startswith('$2'):  # bcrypt hash
             return bcrypt.checkpw(api_key.encode('utf-8'), hashed.encode('utf-8'))
-    except Exception:
-        pass
-    
-    # 尝试 SHA256 验证（更快的备选方案）
-    try:
-        import hashlib
-        hashed_key = hashlib.sha256(api_key.encode()).hexdigest()
-        return hashed_key == hashed
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.warning(f"bcrypt验证失败: {e}")
     
     return False
 
@@ -88,14 +84,21 @@ def get_bot_by_id(db: Session, bot_id: uuid.UUID) -> Optional[Bot]:
 
 def authenticate_bot(db: Session, api_key: str) -> Optional[Bot]:
     """通过API Key认证Bot"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
         # 查询所有活跃或空闲的Bot
         bots = db.query(Bot).filter(Bot.status.in_(['active', 'idle'])).limit(10).all()
+        logger.info(f"找到 {len(bots)} 个Bot")
         
         # 验证API Key
         for bot in bots:
+            logger.info(f"尝试验证 Bot: {bot.name}, hash: {bot.api_key_hash[:20]}...")
             if verify_api_key(api_key, bot.api_key_hash):
+                logger.info(f"Bot验证成功: {bot.name}")
                 return bot
+            logger.info(f"Bot验证失败: {bot.name}")
     except Exception as e:
         logger.error(f"Bot认证失败: {e}")
     
