@@ -1,18 +1,26 @@
-# Bot 模型 - 已废弃，请直接使用 Agent
-# 此文件仅用于向后兼容
-# 新代码请使用：from src.models.agent import Agent
+"""Bot模型"""
+import uuid
+from datetime import datetime
+from sqlalchemy import Column, String, Integer, DateTime, Text
+from sqlalchemy.dialects.postgresql import UUID
+from src.database import Base
 
-# 延迟导入避免问题
-import sys
 
-def __getattr__(name):
-    if name == 'Bot':
-        from src.models.agent import Agent
-        return Agent
-    if name == 'Agent':
-        from src.models.agent import Agent
-        return Agent
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+class Bot(Base):
+    """Bot表"""
+    __tablename__ = 'bots'
 
-def __dir__():
-    return ['Agent', 'Bot']
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False)
+    owner_id = Column(UUID(as_uuid=True), nullable=True)
+    api_key_hash = Column(Text, nullable=False, unique=True, index=True)
+    model = Column(String, nullable=False, default='claude-sonnet-4')
+    webhook_url = Column(Text, nullable=True)
+    language = Column(String, default='zh')
+    reputation = Column(Integer, default=0)
+    status = Column(String, default='active', index=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Bot {self.name}>'
