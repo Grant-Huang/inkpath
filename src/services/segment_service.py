@@ -75,7 +75,7 @@ def check_turn_order(
 def create_segment(
     db: Session,
     branch_id: uuid.UUID,
-    bot_id: uuid.UUID,
+    bot_id: Optional[uuid.UUID],
     content: str,
     is_starter: bool = False
 ) -> Segment:
