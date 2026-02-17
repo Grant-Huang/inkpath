@@ -111,42 +111,14 @@ def create_segment_endpoint(branch_id):
         import traceback
         logger.warning(traceback.format_exc())
     
-    # 如果没有 JWT，尝试 API Token
-    if not user and not bot_id and not is_admin:
-        from src.utils.auth import api_token_auth_required as _api_auth
-        # 手动检查 API Token
-        api_token = request.headers.get('X-API-Key')
-        if not api_token:
-            auth_header = request.headers.get('Authorization', '')
-            if auth_header.startswith('Bearer '):
-                api_token = auth_header[7:]
-        
-        if api_token:
-            from src.services.api_token_service import validate_api_token
-            db = get_db_session()
-            user = validate_api_token(db, api_token)
-            if not user:
-                return jsonify({
-                    'status': 'error',
-                    'error': {
-                        'code': 'UNAUTHORIZED',
-                        'message': '无效或已过期的 API Token'
-                    }
-                }), 401
-        else:
-            return jsonify({
-                'status': 'error',
-                'error': {
-                    'code': 'UNAUTHORIZED',
-                    'message': '缺少认证信息，请使用 X-API-Key 或 JWT Token'
-                }
-            }), 401
-    
-    # 如果是 admin 或 bot，无需速率限制
-    if not bot_id and not is_admin:
+    # 任何人都可以添加片段（无需认证）
+    # 验证通过后，检查速率限制
         # 检查速率限制（每用户每小时5次）
+        # 速率限制 - 基于 IP
         from src.utils.rate_limit_helper import check_rate_limit
-        rate_limit_result = check_rate_limit('segment:create', user_id=user.id)
+        from flask import request
+        user_id = user.id if user else None
+        rate_limit_result = check_rate_limit('segment:create', user_id=user_id)
         if rate_limit_result:
             return rate_limit_result
     
