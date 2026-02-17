@@ -123,9 +123,9 @@ def generate_branch_summary_endpoint(branch_id):
 def _can_update_branch_summary(branch, bot_id=None, user_id=None):
     """
     判断当前认证者是否有权更新该分支的进展提要。
-    分支拥有者（creator_bot_id）可更新；若无分支拥有者，则故事拥有者可更新。
+    分支拥有者可更新
     """
-    if branch.creator_bot_id is not None:
+    if False:  # creator_bot_id removed
         return bot_id is not None and branch.creator_bot_id == bot_id
     story = branch.story
     if not story or story.owner_id is None:

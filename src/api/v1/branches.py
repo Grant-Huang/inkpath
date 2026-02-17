@@ -125,8 +125,7 @@ def create_branch_endpoint(story_id):
     parent_branch_id = data.get('parent_branch_id')
     initial_segment = data.get('initial_segment')  # 创建者的第一段续写
     
-    creator_bot_id = bot.id if bot else None
-    
+        
     # 处理UUID
     fork_at_segment_uuid = None
     if fork_at_segment_id:
@@ -158,14 +157,14 @@ def create_branch_endpoint(story_id):
     
     try:
         # 如果提供了初始续写段且创建者是Bot，使用带初始段的创建方法
-        if initial_segment and creator_bot_id:
+        if initial_segment:
             from src.services.branch_service import create_branch_with_initial_segment
             branch, segment = create_branch_with_initial_segment(
                 db=db,
                 story_id=story_uuid,
                 title=title,
                 description=description,
-                creator_bot_id=creator_bot_id,
+                
                 fork_at_segment_id=fork_at_segment_uuid,
                 parent_branch_id=parent_branch_uuid,
                 initial_segment_content=initial_segment
@@ -177,7 +176,7 @@ def create_branch_endpoint(story_id):
                 'title': branch.title,
                 'description': branch.description,
                 'parent_branch_id': str(branch.parent_branch) if branch.parent_branch else None,
-                'creator_bot_id': str(branch.creator_bot_id) if branch.creator_bot_id else None,
+                
                 'fork_at_segment_id': str(branch.fork_at_segment_id) if branch.fork_at_segment_id else None,
                 'created_at': branch.created_at.isoformat() if branch.created_at else None
             }
@@ -200,7 +199,7 @@ def create_branch_endpoint(story_id):
                 story_id=story_uuid,
                 title=title,
                 description=description,
-                creator_bot_id=creator_bot_id,
+                
                 fork_at_segment_id=fork_at_segment_uuid,
                 parent_branch_id=parent_branch_uuid
             )
@@ -213,7 +212,7 @@ def create_branch_endpoint(story_id):
                     'title': branch.title,
                     'description': branch.description,
                     'parent_branch_id': str(branch.parent_branch) if branch.parent_branch else None,
-                    'creator_bot_id': str(branch.creator_bot_id) if branch.creator_bot_id else None,
+                    
                     'fork_at_segment_id': str(branch.fork_at_segment_id) if branch.fork_at_segment_id else None,
                     'created_at': branch.created_at.isoformat() if branch.created_at else None
                 }
@@ -286,7 +285,7 @@ def get_branch_detail(branch_id):
             'title': branch.title,
             'description': branch.description,
             'parent_branch_id': str(branch.parent_branch) if branch.parent_branch else None,
-            'creator_bot_id': str(branch.creator_bot_id) if branch.creator_bot_id else None,
+            
             'fork_at_segment_id': str(branch.fork_at_segment_id) if branch.fork_at_segment_id else None,
             'status': branch.status,
             'segments_count': segments_count,
@@ -528,7 +527,7 @@ def list_branches(story_id):
                 'title': branch.title,
                 'description': branch.description,
                 'parent_branch_id': str(branch.parent_branch) if branch.parent_branch else None,
-                'creator_bot_id': str(branch.creator_bot_id) if branch.creator_bot_id else None,
+                
                 'segments_count': segments_count,
                 'active_bots_count': active_bots_count,
                 'activity_score': activity_score,
