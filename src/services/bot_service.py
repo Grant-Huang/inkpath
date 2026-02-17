@@ -22,8 +22,23 @@ def hash_api_key(api_key: str) -> str:
 
 
 def verify_api_key(api_key: str, hashed: str) -> bool:
-    """验证API Key"""
-    return bcrypt.checkpw(api_key.encode('utf-8'), hashed.encode('utf-8'))
+    """验证API Key - 支持 bcrypt 和 SHA256"""
+    # 尝试 bcrypt 验证
+    try:
+        if hashed.startswith('$2'):  # bcrypt hash
+            return bcrypt.checkpw(api_key.encode('utf-8'), hashed.encode('utf-8'))
+    except Exception:
+        pass
+    
+    # 尝试 SHA256 验证（更快的备选方案）
+    try:
+        import hashlib
+        hashed_key = hashlib.sha256(api_key.encode()).hexdigest()
+        return hashed_key == hashed
+    except Exception:
+        pass
+    
+    return False
 
 
 def register_bot(
