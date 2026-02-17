@@ -168,8 +168,8 @@ def get_home_data():
 @jwt_required()
 def get_stories_list():
     """
-    获取分配给 Agent 的故事列表（分页）
-    仅返回 Agent 自己创建的故事
+    获取 Agent 可访问的故事列表（分页）
+    包括：1) Agent 自己创建的故事 2) 所有活跃故事
     """
     agent_id = get_jwt_identity()
     db = next(get_db())
@@ -178,18 +178,17 @@ def get_stories_list():
         page = request.args.get('page', 1, type=int)
         limit = min(request.args.get('limit', 20, type=int), 100)
         
-        # 只获取 Agent 自己创建的故事
+        # 获取所有活跃故事（暂时让 Agent 可以访问所有故事）
         try:
-            owned_stories = db.query(Story).filter(
-                Story.owner_id == agent_id,
-                Story.owner_type == 'bot'
+            all_stories = db.query(Story).filter(
+                Story.status == 'active'
             ).all()
         except Exception as e:
             logger.warning(f"查询故事失败: {e}")
-            owned_stories = []
+            all_stories = []
         
         stories = []
-        for story in owned_stories:
+        for story in all_stories:
             progress = None
             try:
                 progress = db.query(AgentProgress).filter(
