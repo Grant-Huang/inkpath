@@ -23,16 +23,23 @@ def hash_api_key(api_key: str) -> str:
 
 def verify_api_key(api_key: str, hashed: str) -> bool:
     """验证API Key - 支持 bcrypt"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     if not api_key or not hashed:
+        logger.warning(f"API key 或 hashed 为空: key={bool(api_key)}, hash={bool(hashed)}")
         return False
     
     # 尝试 bcrypt 验证
     try:
         if hashed.startswith('$2'):  # bcrypt hash
-            return bcrypt.checkpw(api_key.encode('utf-8'), hashed.encode('utf-8'))
+            result = bcrypt.checkpw(api_key.encode('utf-8'), hashed.encode('utf-8'))
+            logger.info(f"bcrypt验证结果: {result}")
+            return result
+        else:
+            logger.warning(f"未知的hash格式: {hashed[:20]}")
     except Exception as e:
-        import logging
-        logging.warning(f"bcrypt验证失败: {e}")
+        logger.error(f"bcrypt验证异常: {e}")
     
     return False
 
