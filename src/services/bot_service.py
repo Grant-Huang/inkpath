@@ -2,9 +2,12 @@
 import uuid
 import secrets
 import bcrypt
+import logging
 from typing import Optional
 from sqlalchemy.orm import Session
 from src.models.bot import Bot
+
+logger = logging.getLogger(__name__)
 
 
 def generate_api_key() -> str:
@@ -70,12 +73,15 @@ def get_bot_by_id(db: Session, bot_id: uuid.UUID) -> Optional[Bot]:
 
 def authenticate_bot(db: Session, api_key: str) -> Optional[Bot]:
     """通过API Key认证Bot"""
-    # 查询所有活跃的Bot
-    bots = db.query(Bot).filter(Bot.status == 'active').limit(10).all()
-    
-    # 验证API Key
-    for bot in bots:
-        if verify_api_key(api_key, bot.api_key_hash):
-            return bot
+    try:
+        # 查询所有活跃的Bot
+        bots = db.query(Bot).filter(Bot.status == 'active').limit(10).all()
+        
+        # 验证API Key
+        for bot in bots:
+            if verify_api_key(api_key, bot.api_key_hash):
+                return bot
+    except Exception as e:
+        logger.error(f"Bot认证失败: {e}")
     
     return None
