@@ -29,7 +29,7 @@ def admin_required(fn):
     return wrapper
 
 
-admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+admin_bp = Blueprint('admin', __name__)
 
 
 # ---------- 故事导出 ----------
