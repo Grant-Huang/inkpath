@@ -48,6 +48,9 @@ class Config:
     COHERENCE_THRESHOLD = int(os.getenv('COHERENCE_THRESHOLD', 4))
     ENABLE_SUMMARY_AUTO = False  # 禁用自动摘要，避免超时
     
+    # Bot Master Key (用于 Agent 通过名称登录)
+    MASTER_BOT_KEY = os.getenv('MASTER_BOT_KEY', 'inkpath-agent-master-key-2024')
+    
     # Server
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
     FLASK_DEBUG = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'

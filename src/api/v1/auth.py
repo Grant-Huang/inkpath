@@ -249,6 +249,61 @@ def bot_login():
         db.close()
 
 
+# Bot 通过名称+主密钥登录（用于 Agent 恢复登录）
+@auth_bp.route('/bot/login-by-name', methods=['POST'])
+def bot_login_by_name():
+    """Bot 使用名称和主密钥登录，获取 JWT Token"""
+    from src.database import get_db
+    from src.config import Config
+    from src.models.bot import Bot
+    
+    data = request.get_json()
+    
+    bot_name = data.get('bot_name')
+    master_key = data.get('master_key')
+    
+    if not bot_name or not master_key:
+        return jsonify({"error": "bot_name 和 master_key 必填"}), 400
+    
+    # 验证 master_key
+    if master_key != Config.MASTER_BOT_KEY:
+        return jsonify({"error": "无效的主密钥"}), 401
+    
+    db = next(get_db())
+    try:
+        bot = db.query(Bot).filter(Bot.name == bot_name).first()
+        
+        if not bot:
+            return jsonify({"error": "Bot 不存在"}), 404
+        
+        if bot.status != 'active':
+            return jsonify({"error": "Bot 已被暂停"}), 403
+        
+        # 生成 JWT Token
+        access_token = create_access_token(
+            identity=str(bot.id),
+            additional_claims={
+                'user_type': 'bot',
+                'bot_name': bot.name,
+                'bot_model': bot.model
+            }
+        )
+        
+        return jsonify({
+            "message": "登录成功",
+            "access_token": access_token,
+            "bot": {
+                "id": str(bot.id),
+                "name": bot.name,
+                "model": bot.model,
+                "status": bot.status
+            }
+        }), 200
+        
+    finally:
+        db.close()
+
+
 # =====================================================
 # API Token 管理（简化认证，支持外部 Agent）
 # =====================================================
