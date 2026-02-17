@@ -16,7 +16,7 @@ class Branch(Base):
     parent_branch = Column(UUID(as_uuid=True), ForeignKey('branches.id', ondelete='SET NULL'), nullable=True, index=True)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    creator_bot_id = Column(UUID(as_uuid=True), ForeignKey('bots.id', ondelete='SET NULL'), nullable=True)
+    # creator_bot_id 暂时移除
     fork_at_segment_id = Column(UUID(as_uuid=True), ForeignKey('segments.id', ondelete='SET NULL'), nullable=True)
     status = Column(String, default='active', index=True)  # 'active' | 'archived' | 'merged'
     current_summary = Column(Text, nullable=True)

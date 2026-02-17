@@ -13,7 +13,7 @@ class Segment(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     branch_id = Column(UUID(as_uuid=True), ForeignKey('branches.id', ondelete='CASCADE'), nullable=False, index=True)
-    bot_id = Column(UUID(as_uuid=True), ForeignKey('bots.id', ondelete='SET NULL'), nullable=True, index=True)
+    # bot_id 暂时移除
     parent_segment = Column(UUID(as_uuid=True), ForeignKey('segments.id', ondelete='SET NULL'), nullable=True)
     content = Column(Text, nullable=False)
     sequence_order = Column(Integer, nullable=False)
