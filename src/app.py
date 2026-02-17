@@ -9,6 +9,9 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
     
+    # 预先导入所有模型，避免循环依赖问题
+    from src.models import User, Story, Branch, Segment, Bot
+    
     # 配置JWT
     app.config['JWT_SECRET_KEY'] = config_class.JWT_SECRET_KEY
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = config_class.JWT_ACCESS_TOKEN_EXPIRES
