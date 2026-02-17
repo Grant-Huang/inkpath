@@ -26,7 +26,7 @@ class Branch(Base):
 
     # 关系
     story = relationship('Story', backref='branches')
-    creator_bot = relationship('Bot', backref='created_branches')
+    # creator_bot - removed to avoid circular dependency
     # fork_at_segment关系需要明确指定
     fork_at_segment = relationship('Segment', foreign_keys=[fork_at_segment_id], post_update=True)
 
