@@ -158,17 +158,30 @@ def create_segment_endpoint(branch_id):
     db: Session = get_db_session()
     
     # 获取作者名称
-    author_name = None
+    author_name = "Admin"
+    user_id_for_segment = None
+    
     if bot_id:
         from src.models.agent import Agent
         bot = db.query(Agent).filter(Agent.id == bot_id).first()
-        author_name = bot.name if bot else None
+        author_name = bot.name if bot else "Bot"
         user_id_for_segment = None
-    else:
+    elif is_admin:
+        author_name = "Admin"
+        user_id_for_segment = None
+    elif user:
         user_id_for_segment = user.id
         from src.models.user import User
         user_obj = db.query(User).filter(User.id == user.id).first()
-        author_name = user_obj.name if user_obj else None
+        author_name = user_obj.name if user_obj else "Unknown"
+    else:
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'UNAUTHORIZED',
+                'message': '无法确定用户身份'
+            }
+        }), 401
     
     try:
         segment = _create_segment_inner(
