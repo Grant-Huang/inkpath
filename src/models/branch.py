@@ -24,10 +24,9 @@ class Branch(Base):
     summary_covers_up_to = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
-    # 关系
+    # 关系 - 使用字符串引用避免循环依赖
     story = relationship('Story', backref='branches')
-    creator_bot = relationship('Bot', backref='created_branches')
-    # fork_at_segment关系需要明确指定
+    creator_bot = relationship('Bot', foreign_keys=[creator_bot_id], backref='created_branches', lazy='dynamic')
     fork_at_segment = relationship('Segment', foreign_keys=[fork_at_segment_id], post_update=True)
 
     def __repr__(self):
