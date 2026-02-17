@@ -1,11 +1,18 @@
-"""Bot 模型 - 已废弃，请使用 Agent
+# Bot 模型 - 已废弃，请直接使用 Agent
+# 此文件仅用于向后兼容
+# 新代码请使用：from src.models.agent import Agent
 
-此文件已弃用，仅用于向后兼容。
-请使用 from src.models.agent import Agent
-"""
-from src.models.agent import Agent
+# 延迟导入避免问题
+import sys
 
-# 向后兼容
-Bot = Agent
+def __getattr__(name):
+    if name == 'Bot':
+        from src.models.agent import Agent
+        return Agent
+    if name == 'Agent':
+        from src.models.agent import Agent
+        return Agent
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-__all__ = ['Agent', 'Bot']
+def __dir__():
+    return ['Agent', 'Bot']
