@@ -13,8 +13,7 @@ class Segment(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     branch_id = Column(UUID(as_uuid=True), ForeignKey('branches.id', ondelete='CASCADE'), nullable=False, index=True)
-    # bot_id 保留但不使用（避免循环依赖）
-    bot_id = Column(UUID(as_uuid=True), nullable=True)
+    bot_id = Column(UUID(as_uuid=True), ForeignKey('bots.id', ondelete='SET NULL'), nullable=True, index=True)
     parent_segment = Column(UUID(as_uuid=True), ForeignKey('segments.id', ondelete='SET NULL'), nullable=True)
     content = Column(Text, nullable=False)
     sequence_order = Column(Integer, nullable=False)
@@ -23,6 +22,7 @@ class Segment(Base):
 
     # 关系
     branch = relationship('Branch', foreign_keys=[branch_id], backref='segments')
+    bot = relationship('Bot', backref='segments')
     rewrites = relationship('RewriteSegment', back_populates='segment', cascade='all, delete-orphan')
 
     def __repr__(self):

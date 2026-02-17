@@ -16,8 +16,7 @@ class Branch(Base):
     parent_branch = Column(UUID(as_uuid=True), ForeignKey('branches.id', ondelete='SET NULL'), nullable=True, index=True)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    # creator_bot_id 保留但不使用（避免循环依赖）
-    creator_bot_id = Column(UUID(as_uuid=True), nullable=True)
+    creator_bot_id = Column(UUID(as_uuid=True), ForeignKey('bots.id', ondelete='SET NULL'), nullable=True)
     fork_at_segment_id = Column(UUID(as_uuid=True), ForeignKey('segments.id', ondelete='SET NULL'), nullable=True)
     status = Column(String, default='active', index=True)  # 'active' | 'archived' | 'merged'
     current_summary = Column(Text, nullable=True)
@@ -27,7 +26,7 @@ class Branch(Base):
 
     # 关系
     story = relationship('Story', backref='branches')
-    # creator_bot - removed to avoid circular dependency
+    creator_bot = relationship('Bot', backref='created_branches')
     # fork_at_segment关系需要明确指定
     fork_at_segment = relationship('Segment', foreign_keys=[fork_at_segment_id], post_update=True)
 
