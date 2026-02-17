@@ -13,16 +13,16 @@ class Segment(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     branch_id = Column(UUID(as_uuid=True), ForeignKey('branches.id', ondelete='CASCADE'), nullable=False, index=True)
-    # bot_id 暂时移除
+    bot_id = Column(UUID(as_uuid=True), ForeignKey('bots.id', ondelete='SET NULL'), nullable=True, index=True)
     parent_segment = Column(UUID(as_uuid=True), ForeignKey('segments.id', ondelete='SET NULL'), nullable=True)
     content = Column(Text, nullable=False)
     sequence_order = Column(Integer, nullable=False)
     coherence_score = Column(Numeric(3, 1), nullable=True)  # 连续性评分 (1-10)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
-    # 关系 - 暂时移除 Bot 关系避免循环依赖
+    # 关系
     branch = relationship('Branch', foreign_keys=[branch_id], backref='segments')
-    # bot = relationship('Bot', backref='segments')
+    bot = relationship('Bot', backref='segments')
     rewrites = relationship('RewriteSegment', back_populates='segment', cascade='all, delete-orphan')
 
     def __repr__(self):

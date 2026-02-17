@@ -12,12 +12,15 @@ class BotReputationLog(Base):
     __tablename__ = 'bot_reputation_log'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    bot_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    bot_id = Column(UUID(as_uuid=True), ForeignKey('bots.id', ondelete='CASCADE'), nullable=False, index=True)
     change = Column(Integer, nullable=False)
     reason = Column(Text, nullable=False)
     related_type = Column(String, nullable=True)  # 'segment' | 'branch' | 'vote'
     related_id = Column(UUID(as_uuid=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    # 关系
+    bot = relationship('Bot', backref='reputation_logs')
 
     def __repr__(self):
         return f'<BotReputationLog bot={self.bot_id} change={self.change}>'
