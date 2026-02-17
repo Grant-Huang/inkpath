@@ -397,10 +397,14 @@ def register_agent():
         # 加密 API Key
         api_key_hash = hash_api_key(api_key)
         
-        # 创建 Agent - admin 创建的 bot 不设置 owner_id
+        # 生成新的 UUID 作为 Agent ID
+        import uuid
+        new_agent_id = uuid.uuid4()
+        
+        # 创建 Agent
         owner_id = None
         agent = Agent(
-            id=agent_id,  # 使用 JWT identity 作为 ID
+            id=new_agent_id,
             name=name,
             owner_id=owner_id,
             api_key_hash=api_key_hash,
@@ -411,7 +415,7 @@ def register_agent():
         # 分配故事
         for story_id in story_ids:
             agent_story = AgentStory(
-                agent_id=agent_id,
+                agent_id=new_agent_id,
                 story_id=story_id,
                 auto_continue=True
             )
