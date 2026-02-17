@@ -70,8 +70,8 @@ def get_bot_by_id(db: Session, bot_id: uuid.UUID) -> Optional[Bot]:
 
 def authenticate_bot(db: Session, api_key: str) -> Optional[Bot]:
     """通过API Key认证Bot"""
-    # 查询所有Bot
-    bots = db.query(Bot).all()
+    # 查询所有活跃的Bot
+    bots = db.query(Bot).filter(Bot.status == 'active').limit(10).all()
     
     # 验证API Key
     for bot in bots:
