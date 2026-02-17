@@ -11,20 +11,22 @@ def create_story(
     db: Session,
     title: str,
     background: str,
-    owner_id: uuid.UUID,
+    owner_id: Optional[uuid.UUID],
     owner_type: str,  # 'human' | 'bot'
     style_rules: Optional[str] = None,
     starter: Optional[str] = None,
     language: str = 'zh',
     min_length: int = 150,
     max_length: int = 500,
-    story_pack_json: Optional[Dict[str, Any]] = None
+    story_pack_json: Optional[Dict[str, Any]] = None,
+    initial_segments: Optional[list[str]] = None  # 初始续写片段列表（3-5个）
 ) -> Story:
     """
     创建故事
     
     Args:
-        starter: 开篇内容（第一个片段，由作者手动创作）
+        starter: 开篇内容（第一个片段，由作者手动创作），会自动创建为第一个 Segment
+        initial_segments: 初始续写片段列表（可选，3-5个），会在 starter 之后自动创建
     
     Returns:
         Story对象
@@ -85,6 +87,91 @@ def create_story(
         )
         db.add(membership)
         db.commit()
+    
+    # 获取所有者名称（用于日志）
+    owner_name = 'Unknown'
+    if owner_id:
+        if owner_type == 'bot':
+            from src.models.agent import Agent
+            bot = db.query(Agent).filter(Agent.id == owner_id).first()
+            owner_name = bot.name if bot else 'Bot'
+        else:
+            from src.models.user import User
+            user = db.query(User).filter(User.id == owner_id).first()
+            owner_name = user.name if user else 'User'
+    else:
+        owner_name = 'Anonymous'
+    
+    # 如果提供了 starter，自动创建第一个片段（Segment）
+    if starter:
+        from src.models.segment import Segment
+        starter_segment = Segment(
+            branch_id=main_branch.id,
+            bot_id=owner_id if owner_type == 'bot' else None,
+            content=starter,
+            sequence_order=1
+        )
+        db.add(starter_segment)
+        db.commit()
+        db.refresh(starter_segment)
+        
+        # 记录日志
+        try:
+            from src.services.segment_service import log_segment_creation
+            log_segment_creation(
+                db=db,
+                segment_id=starter_segment.id,
+                story_id=story.id,
+                branch_id=main_branch.id,
+                author_id=owner_id,
+                author_type=owner_type,
+                author_name=owner_name,
+                content_length=len(starter) if starter else 0,
+                is_continuation='new'
+            )
+        except Exception as log_error:
+            import logging
+            logging.warning(f"记录 starter 片段日志失败: {log_error}")
+        
+        # 如果提供了初始续写片段列表，自动创建这些片段
+        if initial_segments and isinstance(initial_segments, list):
+            current_order = 1  # starter 已经是 1
+            previous_segment_id = starter_segment.id  # 前一个片段的ID
+            
+            for idx, segment_content in enumerate(initial_segments[:5], start=1):  # 最多5个
+                if segment_content and isinstance(segment_content, str):
+                    current_order += 1
+                    continuation_segment = Segment(
+                        branch_id=main_branch.id,
+                        bot_id=owner_id if owner_type == 'bot' else None,
+                        content=segment_content,
+                        sequence_order=current_order,
+                        parent_segment=previous_segment_id  # 指向前一个片段
+                    )
+                    db.add(continuation_segment)
+                    db.commit()
+                    db.refresh(continuation_segment)
+                    
+                    # 记录日志
+                    try:
+                        log_segment_creation(
+                            db=db,
+                            segment_id=continuation_segment.id,
+                            story_id=story.id,
+                            branch_id=main_branch.id,
+                            author_id=owner_id,
+                            author_type=owner_type,
+                            author_name=owner_name,
+                            content_length=len(segment_content),
+                            is_continuation='continuation',
+                            parent_segment_id=previous_segment_id
+                        )
+                    except Exception as log_error:
+                        import logging
+                        logging.warning(f"记录初始续写片段日志失败: {log_error}")
+                    
+                    # 更新前一个片段ID，用于下一个片段的 parent_segment
+                    previous_segment_id = continuation_segment.id
     
     return story
 

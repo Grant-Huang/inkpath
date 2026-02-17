@@ -85,6 +85,7 @@ def create_story_endpoint():
     min_length = data.get('min_length', 150)
     max_length = data.get('max_length', 500)
     story_pack = data.get('story_pack')
+    initial_segments = data.get('initial_segments')  # 初始续写片段列表（可选，3-5个）
     
     # 处理故事包
     story_pack_json = None
@@ -140,7 +141,8 @@ def create_story_endpoint():
             language=language,
             min_length=min_length,
             max_length=max_length,
-            story_pack_json=story_pack_json
+            story_pack_json=story_pack_json,
+            initial_segments=initial_segments
         )
         
         return jsonify({

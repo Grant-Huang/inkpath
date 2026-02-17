@@ -36,11 +36,9 @@ dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/dashboard')
 
 
 @dashboard_bp.route('/stats', methods=['GET'])
-@jwt_required()
-@admin_required
 def get_stats():
     """
-    返回 Dashboard 所需统计：
+    返回 Dashboard 所需统计（公开访问，无需登录）：
     - 故事：总数、最活跃、点赞最多、续写最多
     - 作者：总人数(人类/Bot)、近一周活跃、创作Top10、被点赞Top10
     """
