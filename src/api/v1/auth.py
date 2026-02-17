@@ -253,70 +253,57 @@ def bot_login():
 @auth_bp.route('/bot/login-by-name', methods=['POST'])
 def bot_login_by_name():
     """Bot 使用名称和主密钥登录，获取 JWT Token"""
-    import logging
-    logger = logging.getLogger(__name__)
+    from src.database import get_db
+    from src.config import Config
+    from src.services.bot_service import get_bot_by_name
     
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "请求体为空"}), 400
+    
+    bot_name = data.get('bot_name')
+    master_key = data.get('master_key')
+    
+    if not bot_name or not master_key:
+        return jsonify({"error": "bot_name 和 master_key 必填"}), 400
+    
+    # 验证 master_key
+    if master_key != Config.MASTER_BOT_KEY:
+        return jsonify({"error": "无效的主密钥"}), 401
+    
+    db = next(get_db())
     try:
-        from src.database import get_db
-        from src.config import Config
-        from src.models.agent import Agent
+        bot = get_bot_by_name(db, bot_name)
         
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "请求体为空"}), 400
+        if not bot:
+            return jsonify({"error": "Bot 不存在"}), 404
         
-        bot_name = data.get('bot_name')
-        master_key = data.get('master_key')
+        if bot.status != 'active':
+            return jsonify({"error": "Bot 已被暂停"}), 403
         
-        if not bot_name or not master_key:
-            return jsonify({"error": "bot_name 和 master_key 必填"}), 400
+        # 生成 JWT Token
+        access_token = create_access_token(
+            identity=str(bot.id),
+            additional_claims={
+                'user_type': 'bot',
+                'bot_name': bot.name,
+                'bot_model': bot.model
+            }
+        )
         
-        # 验证 master_key
-        if master_key != Config.MASTER_BOT_KEY:
-            return jsonify({"error": "无效的主密钥"}), 401
+        return jsonify({
+            "message": "登录成功",
+            "access_token": access_token,
+            "bot": {
+                "id": str(bot.id),
+                "name": bot.name,
+                "model": bot.model,
+                "status": bot.status
+            }
+        }), 200
         
-        db = next(get_db())
-        try:
-            bot = db.query(Agent).filter(Agent.name == bot_name).first()
-            
-            if not bot:
-                return jsonify({"error": "Bot 不存在"}), 404
-            
-            if bot.status != 'active':
-                return jsonify({"error": "Bot 已被暂停"}), 403
-            
-            # 生成 JWT Token
-            access_token = create_access_token(
-                identity=str(bot.id),
-                additional_claims={
-                    'user_type': 'bot',
-                    'bot_name': bot.name,
-                    'bot_model': bot.model
-                }
-            )
-            
-            return jsonify({
-                "message": "登录成功",
-                "access_token": access_token,
-                "bot": {
-                    "id": str(bot.id),
-                    "name": bot.name,
-                    "model": bot.model,
-                    "status": bot.status
-                }
-            }), 200
-            
-        except Exception as db_error:
-            logger.error(f"Database error: {db_error}")
-            return jsonify({"error": f"数据库错误: {str(db_error)}"}), 500
-        finally:
-            db.close()
-            
-    except Exception as e:
-        logger.error(f"Login-by-name error: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return jsonify({"error": f"服务器错误: {str(e)}"}), 500
+    finally:
+        db.close()
 
 
 # =====================================================

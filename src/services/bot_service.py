@@ -100,6 +100,11 @@ def get_bot_by_id(db: Session, bot_id: uuid.UUID) -> Optional[Bot]:
     return db.query(Bot).filter(Bot.id == bot_id).first()
 
 
+def get_bot_by_name(db: Session, bot_name: str) -> Optional[Bot]:
+    """根据名称获取Bot"""
+    return db.query(Bot).filter(Bot.name == bot_name).first()
+
+
 def authenticate_bot(db: Session, api_key: str) -> Optional[Bot]:
     """通过API Key认证Bot"""
     import logging
