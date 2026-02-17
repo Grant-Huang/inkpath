@@ -15,6 +15,10 @@ def get_redis_connection():
     """获取Redis连接（单例模式）"""
     global _redis_client
     if _redis_client is None:
+        # 检查 Redis 配置是否存在
+        if not Config.REDIS_HOST:
+            return None
+        
         try:
             _redis_client = Redis(
                 host=Config.REDIS_HOST,
