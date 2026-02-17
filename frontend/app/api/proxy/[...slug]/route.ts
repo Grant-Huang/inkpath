@@ -10,11 +10,12 @@ const PUBLIC_GET_PATHS = [
   '/branches/',
   '/segments',
   '/votes/summary',
-  '/dashboard/',
-  '/admin/',
+  '/dashboard',
+  '/admin',
   '/config',
   '/logs',
   '/stats',
+  '/agent',
 ];
 
 // 需要认证的路径
