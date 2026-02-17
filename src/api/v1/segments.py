@@ -10,6 +10,7 @@ from src.services.segment_service import (
 from src.services.branch_service import get_next_bot_in_queue
 from src.utils.auth import bot_auth_required, api_token_auth_required
 from src.utils.rate_limit import create_segment_rate_limit
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 
 
 def get_db_session():
@@ -56,10 +57,68 @@ def _create_segment_inner(db, branch_uuid, user_id=None, bot_id=None, bot_name=N
 
 
 @segments_bp.route('/branches/<branch_id>/segments', methods=['POST'])
-@api_token_auth_required
 def create_segment_endpoint(branch_id):
-    """提交续写API（支持 API Token 认证）"""
-    user = g.current_user
+    """提交续写API（支持 API Token 或 JWT 认证）"""
+    # 尝试 JWT 认证
+    user = None
+    bot_id = None
+    
+    try:
+        verify_jwt_in_request(optional=True)
+        jwt_identity = get_jwt_identity()
+        if jwt_identity:
+            # 检查是否是 bot
+            from src.models.agent import Agent
+            db = get_db_session()
+            bot = db.query(Agent).filter(Agent.id == jwt_identity).first()
+            if bot:
+                bot_id = jwt_identity
+                user = None
+            else:
+                # 人类用户
+                from src.models.user import User
+                user = db.query(User).filter(User.id == jwt_identity).first()
+    except:
+        pass
+    
+    # 如果没有 JWT，尝试 API Token
+    if not user and not bot_id:
+        from src.utils.auth import api_token_auth_required as _api_auth
+        # 手动检查 API Token
+        api_token = request.headers.get('X-API-Key')
+        if not api_token:
+            auth_header = request.headers.get('Authorization', '')
+            if auth_header.startswith('Bearer '):
+                api_token = auth_header[7:]
+        
+        if api_token:
+            from src.services.api_token_service import validate_api_token
+            db = get_db_session()
+            user = validate_api_token(db, api_token)
+            if not user:
+                return jsonify({
+                    'status': 'error',
+                    'error': {
+                        'code': 'UNAUTHORIZED',
+                        'message': '无效或已过期的 API Token'
+                    }
+                }), 401
+        else:
+            return jsonify({
+                'status': 'error',
+                'error': {
+                    'code': 'UNAUTHORIZED',
+                    'message': '缺少认证信息，请使用 X-API-Key 或 JWT Token'
+                }
+            }), 401
+    
+    # 如果是 bot，无需速率限制
+    if not bot_id:
+        # 检查速率限制（每用户每小时5次）
+        from src.utils.rate_limit_helper import check_rate_limit
+        rate_limit_result = check_rate_limit('segment:create', user_id=user.id)
+        if rate_limit_result:
+            return rate_limit_result
     
     try:
         branch_uuid = uuid.UUID(branch_id)
@@ -71,12 +130,6 @@ def create_segment_endpoint(branch_id):
                 'message': '无效的分支ID格式'
             }
         }), 400
-    
-    # 检查速率限制（每用户每小时5次）
-    from src.utils.rate_limit_helper import check_rate_limit
-    rate_limit_result = check_rate_limit('segment:create', user_id=user.id)
-    if rate_limit_result:
-        return rate_limit_result
     
     data = request.get_json()
     
@@ -94,19 +147,29 @@ def create_segment_endpoint(branch_id):
     
     db: Session = get_db_session()
     
+    # 获取作者名称
+    author_name = None
+    if bot_id:
+        from src.models.agent import Agent
+        bot = db.query(Agent).filter(Agent.id == bot_id).first()
+        author_name = bot.name if bot else None
+        user_id_for_segment = None
+    else:
+        user_id_for_segment = user.id
+        from src.models.user import User
+        user_obj = db.query(User).filter(User.id == user.id).first()
+        author_name = user_obj.name if user_obj else None
+    
     try:
         segment = _create_segment_inner(
             db=db,
             branch_uuid=branch_uuid,
-            user_id=user.id,
+            user_id=user_id_for_segment,
+            bot_id=bot_id,
+            bot_name=author_name,
             content=content,
             is_starter=is_starter
         )
-        
-        # 获取作者信息
-        from src.models.user import User
-        user_obj = db.query(User).filter(User.id == user.id).first()
-        author_name = user_obj.name if user_obj else None
         
         # 获取分支信息（用于日志）
         from src.models.branch import Branch
@@ -114,14 +177,15 @@ def create_segment_endpoint(branch_id):
         
         # 记录创作日志
         try:
+            author_type = 'bot' if bot_id else 'human'
             log_segment_creation(
                 db=db,
                 segment_id=segment.id,
                 story_id=branch_obj.story_id if branch_obj else branch_uuid,
                 branch_id=branch_uuid,
-                author_id=user.id,
-                author_type='human',
-                author_name=author_name or '未知用户',
+                author_id=bot_id or user.id,
+                author_type=author_type,
+                author_name=author_name or ('Bot' if bot_id else '未知用户'),
                 content_length=len(content) if content else 0,
                 is_continuation='new' if is_starter else 'continuation'
             )
@@ -144,14 +208,16 @@ def create_segment_endpoint(branch_id):
                 import logging
                 logging.warning(f"Failed to enqueue your_turn notification: {str(e)}")
         
+        author_id_str = str(bot_id) if bot_id else str(user.id)
+        
         response_data = {
             'segment': {
                 'id': str(segment.id),
                 'content': segment.content,
                 'sequence_order': segment.sequence_order,
-                'author_id': str(user.id),
+                'author_id': author_id_str,
                 'author_name': author_name,
-                'author_type': 'user',
+                'author_type': 'bot' if bot_id else 'user',
                 'created_at': segment.created_at.isoformat() if segment.created_at else None
             }
         }
