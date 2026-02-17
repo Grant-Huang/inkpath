@@ -74,10 +74,10 @@ def create_segment_endpoint(branch_id):
             if jwt_claims and jwt_claims.get('user_type') == 'admin':
                 is_admin = True
             else:
-                # 检查是否是 bot
-                from src.models.agent import Agent
+                # 检查是否是 bot (从 bots 表查询)
+                from src.models.bot import Bot
                 db = get_db_session()
-                bot = db.query(Agent).filter(Agent.id == jwt_identity).first()
+                bot = db.query(Bot).filter(Bot.id == jwt_identity).first()
                 if bot:
                     bot_id = jwt_identity
                 else:
