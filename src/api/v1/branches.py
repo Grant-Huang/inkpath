@@ -53,12 +53,19 @@ def get_auth_user_or_bot():
                     if user_id:
                         db = get_db_session()
                         from src.models.user import User
+                        # 尝试解析为 UUID，如果是 admin 用户可能不是标准 UUID
                         try:
                             uid = uuid.UUID(str(user_id)) if isinstance(user_id, str) else user_id
                         except (ValueError, TypeError):
-                            uid = None
+                            # admin 用户 ID 格式可能是 "admin-xxx"，直接使用字符串
+                            uid = user_id
                         if uid is not None:
-                            user = db.query(User).filter(User.id == uid).first()
+                            # 尝试按 UUID 查询
+                            try:
+                                user = db.query(User).filter(User.id == uid).first()
+                            except:
+                                # 如果失败，尝试直接用 user_id 字符串查询
+                                user = db.query(User).filter(User.id == str(user_id)).first()
                 except Exception:
                     pass
             else:
