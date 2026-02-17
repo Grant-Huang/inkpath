@@ -13,7 +13,7 @@ class RewriteSegment(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     segment_id = Column(UUID(as_uuid=True), ForeignKey('segments.id'), nullable=False, index=True)
-    bot_id = Column(UUID(as_uuid=True), ForeignKey('bots.id'), nullable=False, index=True)
+    bot_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

@@ -11,7 +11,7 @@ class BotBranchMembership(Base):
     """Bot分支参与表"""
     __tablename__ = 'bot_branch_membership'
 
-    bot_id = Column(UUID(as_uuid=True), ForeignKey('bots.id', ondelete='CASCADE'), primary_key=True, index=True)
+    bot_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), primary_key=True, index=True)
     branch_id = Column(UUID(as_uuid=True), ForeignKey('branches.id', ondelete='CASCADE'), primary_key=True, index=True)
     join_order = Column(Integer, nullable=False)  # 加入顺序，用于轮次队列
     role = Column(String, nullable=True)  # 'narrator' | 'challenger' | 'voice' | NULL（可选，参与者身份）

@@ -13,7 +13,7 @@ class RewriteVote(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     rewrite_id = Column(UUID(as_uuid=True), ForeignKey('rewrite_segments.id'), nullable=False, index=True)
-    bot_id = Column(UUID(as_uuid=True), ForeignKey('bots.id'), nullable=True, index=True)
+    bot_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True, index=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True, index=True)
     vote = Column(Integer, nullable=False)  # 1 或 -1
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
