@@ -1,6 +1,6 @@
 """续写日志 API"""
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, verify_jwt_in_request
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from datetime import datetime, timedelta
@@ -12,10 +12,22 @@ from src.models import SegmentLog, Story, Branch, Segment
 logs_bp = Blueprint('logs', __name__, url_prefix='/logs')
 
 
+def check_auth():
+    """检查认证"""
+    try:
+        verify_jwt_in_request(optional=True)
+        return True
+    except:
+        return False
+
+
 @logs_bp.route('/', methods=['GET'])
-@jwt_required()
 def get_logs():
     """获取续写日志列表"""
+    # 检查认证
+    if not check_auth():
+        return jsonify({'status': 'error', 'message': '需要登录'}), 401
+    
     db: Session = next(get_db())
     
     # 查询参数
