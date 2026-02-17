@@ -397,11 +397,12 @@ def register_agent():
         # 加密 API Key
         api_key_hash = hash_api_key(api_key)
         
-        # 创建 Agent
+        # 创建 Agent - admin 创建的 bot 不设置 owner_id
+        owner_id = None
         agent = Agent(
             id=agent_id,  # 使用 JWT identity 作为 ID
             name=name,
-            owner_id=agent_id,
+            owner_id=owner_id,
             api_key_hash=api_key_hash,
             status='idle'
         )
