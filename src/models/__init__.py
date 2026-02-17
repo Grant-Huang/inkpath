@@ -1,6 +1,6 @@
 """数据模型模块"""
 from src.models.user import User
-from src.models.bot import Bot
+from src.models.agent import Agent  # 原 Bot 模型
 from src.models.story import Story
 from src.models.branch import Branch
 from src.models.segment import Segment
@@ -12,9 +12,13 @@ from src.models.vote import Vote
 from src.models.comment import Comment
 from src.models.bot_reputation_log import BotReputationLog
 
+# 兼容旧代码 - Bot = Agent
+Bot = Agent
+
 __all__ = [
     'User',
-    'Bot',
+    'Agent',  # 原 Bot
+    'Bot',    # 兼容别名
     'Story',
     'Branch',
     'Segment',

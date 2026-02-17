@@ -8,23 +8,27 @@ from src.database import Base
 
 
 class Agent(Base):
-    """Agent 表
+    """Agent 表 (原 bots 表)
     
-    存储 Agent 账号信息
+    存储 Agent 账号信息（写作机器人）
     """
-    __tablename__ = 'agents'
+    __tablename__ = 'bots'  # 保持与数据库表名一致
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
-    owner_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    owner_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
     api_key_hash = Column(Text, nullable=False, unique=True, index=True)
-    status = Column(String, default='idle', index=True)  # 'idle' | 'running' | 'error'
+    model = Column(String, nullable=False, default='claude-sonnet-4')  # 'claude-sonnet-4', 'gpt-4o', etc.
+    webhook_url = Column(Text, nullable=True)
+    language = Column(String, default='zh')  # 'zh' | 'en'，Agent主要使用的语言
+    reputation = Column(Integer, default=0)
+    status = Column(String, default='active', index=True)  # 'active' | 'suspended' | 'idle' | 'running' | 'error'
     config = Column(Text, nullable=True)  # JSON 配置
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # 关系 - 由于外键已移除，改为直接查询
-    # stories = relationship('AgentStory', back_populates='agent', cascade='all, delete-orphan')
+    # 关系
+    owner = relationship('User', backref='agents')
 
     def __repr__(self):
         return f'<Agent {self.name}>'
@@ -38,19 +42,15 @@ class AgentStory(Base):
     __tablename__ = 'agent_stories'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    # 不使用外键约束，避免迁移问题
     agent_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     story_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     auto_continue = Column(Boolean, default=True)  # 是否自动续写
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # 唯一约束
     __table_args__ = (
         {'schema': None},
     )
-
-    # 关系已移除（外键约束已移除）
 
     def __repr__(self):
         return f'<AgentStory {self.agent_id} -> {self.story_id}>'
@@ -64,7 +64,6 @@ class AgentProgress(Base):
     __tablename__ = 'agent_progress'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    # 不使用外键约束
     agent_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     story_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     summary = Column(Text, nullable=True)  # 故事进展摘要
@@ -75,7 +74,6 @@ class AgentProgress(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # 唯一约束
     __table_args__ = (
         {'schema': None},
     )
