@@ -10,6 +10,15 @@ const PUBLIC_GET_PATHS = [
   '/branches/',
   '/segments',
   '/votes/summary',
+  '/dashboard/',
+  '/admin/',
+  '/config',
+];
+
+// 需要认证的路径
+const AUTH_REQUIRED_PATHS = [
+  '/admin/',
+  '/dashboard/',
 ];
 
 function isPublicGet(path: string, method: string): boolean {
