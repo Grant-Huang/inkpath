@@ -14,6 +14,7 @@ const PUBLIC_GET_PATHS = [
   '/admin/',
   '/config',
   '/logs',
+  '/stats',
 ];
 
 // 需要认证的路径
