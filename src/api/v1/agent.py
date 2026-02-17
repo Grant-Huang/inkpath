@@ -648,19 +648,19 @@ def continue_story(story_id):
 @agent_bp.route('/my-stories/<story_id>/summarize', methods=['POST'])
 @jwt_required()
 def update_story_summary(story_id):
-    """更新故事进展摘要（调用 LLM）"""
+    """更新故事进展摘要（调用 LLM）- 仅故事所有者可更新"""
     agent_id = get_jwt_identity()
-    db: Session = get_db()
+    db: Session = get_db_session()
     
     try:
-        # 验证权限
-        agent_story = db.query(AgentStory).filter(
-            AgentStory.agent_id == agent_id,
-            AgentStory.story_id == story_id
-        ).first()
+        # 验证权限 - 必须是故事所有者才能更新摘要
+        story = db.query(Story).filter(Story.id == story_id).first()
+        if not story:
+            return jsonify({'error': '故事不存在'}), 404
         
-        if not agent_story:
-            return jsonify({'error': '无权访问此故事'}), 403
+        # 检查是否是故事所有者
+        if story.owner_id != agent_id:
+            return jsonify({'error': '无权更新此故事的摘要'}), 403
         
         # 获取 Bot 信息
         bot = db.query(Agent).filter(Agent.id == agent_id).first()
