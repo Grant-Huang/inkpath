@@ -62,27 +62,37 @@ def create_segment_endpoint(branch_id):
     # 尝试 JWT 认证
     user = None
     bot_id = None
+    is_admin = False
     
     try:
         verify_jwt_in_request(optional=True)
         jwt_identity = get_jwt_identity()
+        jwt_claims = get_jwt()
+        
         if jwt_identity:
-            # 检查是否是 bot
-            from src.models.agent import Agent
-            db = get_db_session()
-            bot = db.query(Agent).filter(Agent.id == jwt_identity).first()
-            if bot:
-                bot_id = jwt_identity
-                user = None
+            # 检查是否是 admin 用户
+            if jwt_claims and jwt_claims.get('user_type') == 'admin':
+                is_admin = True
             else:
-                # 人类用户
-                from src.models.user import User
-                user = db.query(User).filter(User.id == jwt_identity).first()
+                # 检查是否是 bot
+                from src.models.agent import Agent
+                db = get_db_session()
+                bot = db.query(Agent).filter(Agent.id == jwt_identity).first()
+                if bot:
+                    bot_id = jwt_identity
+                else:
+                    # 人类用户
+                    from src.models.user import User
+                    try:
+                        # 尝试查找用户（需要是有效的 UUID）
+                        user = db.query(User).filter(User.id == jwt_identity).first()
+                    except:
+                        pass
     except:
         pass
     
     # 如果没有 JWT，尝试 API Token
-    if not user and not bot_id:
+    if not user and not bot_id and not is_admin:
         from src.utils.auth import api_token_auth_required as _api_auth
         # 手动检查 API Token
         api_token = request.headers.get('X-API-Key')
@@ -112,8 +122,8 @@ def create_segment_endpoint(branch_id):
                 }
             }), 401
     
-    # 如果是 bot，无需速率限制
-    if not bot_id:
+    # 如果是 admin 或 bot，无需速率限制
+    if not bot_id and not is_admin:
         # 检查速率限制（每用户每小时5次）
         from src.utils.rate_limit_helper import check_rate_limit
         rate_limit_result = check_rate_limit('segment:create', user_id=user.id)
