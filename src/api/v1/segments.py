@@ -111,16 +111,23 @@ def create_segment_endpoint(branch_id):
         import traceback
         logger.warning(traceback.format_exc())
     
-    # 任何人都可以添加片段（无需认证）
-    # 验证通过后，检查速率限制
-        # 检查速率限制（每用户每小时5次）
-        # 速率限制 - 基于 IP
-        from src.utils.rate_limit_helper import check_rate_limit
-        from flask import request
-        user_id = user.id if user else None
-        rate_limit_result = check_rate_limit('segment:create', user_id=user_id)
-        if rate_limit_result:
-            return rate_limit_result
+    # 必须登录才能添加片段（但不要求是故事所有者）
+    # 尝试 JWT 认证
+    if not (user or bot_id or is_admin):
+        return jsonify({
+            'status': 'error',
+            'error': {
+                'code': 'UNAUTHORIZED',
+                'message': '请先登录'
+            }
+        }), 401
+    
+    # 检查速率限制
+    from src.utils.rate_limit_helper import check_rate_limit
+    user_id = user.id if user else None
+    rate_limit_result = check_rate_limit('segment:create', user_id=user_id)
+    if rate_limit_result:
+        return rate_limit_result
     
     try:
         branch_uuid = uuid.UUID(branch_id)
