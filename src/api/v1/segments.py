@@ -67,20 +67,28 @@ def create_segment_endpoint(branch_id):
     bot_id = None
     is_admin = False
     
+    # 首先检查 Authorization header
+    auth_header = request.headers.get('Authorization', '')
+    logger.info(f"Auth header: {auth_header[:50]}...")
+    
     try:
+        # 验证 JWT
         verify_jwt_in_request(optional=True)
         jwt_identity = get_jwt_identity()
-        jwt_claims = get_jwt()
-        
-        logger.info(f"JWT验证: identity={jwt_identity}, claims={jwt_claims}")
         
         if jwt_identity:
-            # 检查是否是 admin 用户
+            logger.info(f"JWT identity: {jwt_identity}")
+            
+            # 获取 JWT claims
+            jwt_claims = get_jwt()
+            logger.info(f"JWT claims: {jwt_claims}")
+            
+            # 检查是否是 admin
             if jwt_claims and jwt_claims.get('user_type') == 'admin':
                 is_admin = True
-                logger.info("Admin用户认证成功")
+                logger.info("Admin认证成功")
             else:
-                # 检查是否是 bot (从 bots 表查询)
+                # 尝试查找 bot
                 from src.models.bot import Bot
                 db = get_db_session()
                 bot = db.query(Bot).filter(Bot.id == jwt_identity).first()
@@ -88,15 +96,20 @@ def create_segment_endpoint(branch_id):
                     bot_id = jwt_identity
                     logger.info(f"Bot认证成功: {bot.name}")
                 else:
-                    # 人类用户
+                    # 尝试查找用户
                     from src.models.user import User
                     try:
                         user = db.query(User).filter(User.id == jwt_identity).first()
-                        logger.info(f"用户认证成功: {user}")
+                        logger.info(f"User认证成功: {user}")
                     except Exception as e:
                         logger.warning(f"用户查询失败: {e}")
+        else:
+            logger.info("没有JWT identity")
+            
     except Exception as e:
-        logger.warning(f"JWT验证失败: {e}")
+        logger.warning(f"JWT验证异常: {e}")
+        import traceback
+        logger.warning(traceback.format_exc())
     
     # 如果没有 JWT，尝试 API Token
     if not user and not bot_id and not is_admin:
