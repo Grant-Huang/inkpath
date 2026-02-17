@@ -23,7 +23,7 @@ def hash_api_key(api_key: str) -> str:
 
 
 def verify_api_key(api_key: str, hashed: str) -> bool:
-    """验证API Key - 使用SHA256"""
+    """验证API Key - 支持 SHA256 和 bcrypt"""
     import hashlib
     import logging
     logger = logging.getLogger(__name__)
@@ -32,15 +32,27 @@ def verify_api_key(api_key: str, hashed: str) -> bool:
         logger.warning(f"API key 或 hashed 为空: key={bool(api_key)}, hash={bool(hashed)}")
         return False
     
-    # SHA256 验证
+    # 先尝试 SHA256（新增的Bot）
     try:
         hashed_key = hashlib.sha256(api_key.encode('utf-8')).hexdigest()
-        result = hashed_key == hashed
-        logger.info(f"SHA256验证结果: {result}")
-        return result
+        if hashed_key == hashed:
+            logger.info(f"SHA256验证成功")
+            return True
     except Exception as e:
-        logger.error(f"验证异常: {e}")
-        return False
+        logger.warning(f"SHA256验证失败: {e}")
+    
+    # 尝试 bcrypt（旧 Bot 兼容）
+    try:
+        if hashed.startswith('$2'):
+            import bcrypt
+            if bcrypt.checkpw(api_key.encode('utf-8'), hashed.encode('utf-8')):
+                logger.info(f"bcrypt验证成功")
+                return True
+    except Exception as e:
+        logger.warning(f"bcrypt验证失败: {e}")
+    
+    logger.info(f"验证失败: 不匹配")
+    return False
 
 
 def register_bot(
