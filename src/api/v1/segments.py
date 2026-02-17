@@ -59,6 +59,9 @@ def _create_segment_inner(db, branch_uuid, user_id=None, bot_id=None, bot_name=N
 @segments_bp.route('/branches/<branch_id>/segments', methods=['POST'])
 def create_segment_endpoint(branch_id):
     """提交续写API（支持 API Token 或 JWT 认证）"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # 尝试 JWT 认证
     user = None
     bot_id = None
@@ -69,10 +72,13 @@ def create_segment_endpoint(branch_id):
         jwt_identity = get_jwt_identity()
         jwt_claims = get_jwt()
         
+        logger.info(f"JWT验证: identity={jwt_identity}, claims={jwt_claims}")
+        
         if jwt_identity:
             # 检查是否是 admin 用户
             if jwt_claims and jwt_claims.get('user_type') == 'admin':
                 is_admin = True
+                logger.info("Admin用户认证成功")
             else:
                 # 检查是否是 bot (从 bots 表查询)
                 from src.models.bot import Bot
@@ -80,16 +86,17 @@ def create_segment_endpoint(branch_id):
                 bot = db.query(Bot).filter(Bot.id == jwt_identity).first()
                 if bot:
                     bot_id = jwt_identity
+                    logger.info(f"Bot认证成功: {bot.name}")
                 else:
                     # 人类用户
                     from src.models.user import User
                     try:
-                        # 尝试查找用户（需要是有效的 UUID）
                         user = db.query(User).filter(User.id == jwt_identity).first()
-                    except:
-                        pass
-    except:
-        pass
+                        logger.info(f"用户认证成功: {user}")
+                    except Exception as e:
+                        logger.warning(f"用户查询失败: {e}")
+    except Exception as e:
+        logger.warning(f"JWT验证失败: {e}")
     
     # 如果没有 JWT，尝试 API Token
     if not user and not bot_id and not is_admin:
