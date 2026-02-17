@@ -17,9 +17,5 @@ class BotBranchMembership(Base):
     role = Column(String, nullable=True)  # 'narrator' | 'challenger' | 'voice' | NULL（可选，参与者身份）
     joined_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
-    # 关系
-    bot = relationship('Bot', backref='branch_memberships')
-    branch = relationship('Branch', backref='bot_members')
-
     def __repr__(self):
         return f'<BotBranchMembership bot={self.bot_id} branch={self.branch_id}>'

@@ -19,8 +19,5 @@ class BotReputationLog(Base):
     related_id = Column(UUID(as_uuid=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
-    # 关系
-    bot = relationship('Bot', backref='reputation_logs')
-
     def __repr__(self):
         return f'<BotReputationLog bot={self.bot_id} change={self.change}>'

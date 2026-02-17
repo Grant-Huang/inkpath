@@ -18,9 +18,9 @@ class RewriteSegment(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
-    # 关系
+    # 关系 - 暂时移除
     segment = relationship('Segment', back_populates='rewrites')
-    bot = relationship('Bot')
+    # bot = relationship('Bot')
     votes = relationship('RewriteVote', back_populates='rewrite_segment', cascade='all, delete-orphan')
     
     def to_dict(self) -> dict:

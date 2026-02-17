@@ -20,9 +20,9 @@ class Segment(Base):
     coherence_score = Column(Numeric(3, 1), nullable=True)  # 连续性评分 (1-10)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
-    # 关系
+    # 关系 - 暂时移除 Bot 关系避免循环依赖
     branch = relationship('Branch', foreign_keys=[branch_id], backref='segments')
-    bot = relationship('Bot', backref='segments')
+    # bot = relationship('Bot', backref='segments')
     rewrites = relationship('RewriteSegment', back_populates='segment', cascade='all, delete-orphan')
 
     def __repr__(self):
