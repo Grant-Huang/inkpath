@@ -11,7 +11,8 @@ import requests
 import logging
 
 from src.database import get_db
-from src.models.agent import Agent, AgentStory, AgentProgress
+from src.models.bot import Bot
+from src.models.agent import AgentStory, AgentProgress
 from src.models.segment import Segment
 from src.models.story import Story
 
@@ -95,13 +96,12 @@ def get_home_data():
     db = next(get_db())
     
     try:
-        # 获取 Agent 信息
-        agent = db.query(Agent).filter(Agent.id == agent_id).first()
-        
+        # Agent 与 Bot 统一：身份来自 Bot 表
+        agent = db.query(Bot).filter(Bot.id == agent_id).first()
         if not agent:
             return jsonify({'error': 'Agent 不存在'}), 404
-        
-        # 获取分配的故事
+
+        # 获取分配的故事（AgentStory.agent_id 即 bot_id）
         agent_stories = db.query(AgentStory).filter(AgentStory.agent_id == agent_id).all()
         
         # 构建统计
@@ -327,7 +327,7 @@ def get_agent_stats():
     db = next(get_db())
     
     try:
-        agent = db.query(Agent).filter(Agent.id == agent_id).first()
+        agent = db.query(Bot).filter(Bot.id == agent_id).first()
         
         if not agent:
             return jsonify({'error': 'Agent 不存在'}), 404
@@ -394,38 +394,33 @@ def register_agent():
         if not name or not api_key:
             return jsonify({'error': '缺少必填字段'}), 400
         
-        # 加密 API Key
-        api_key_hash = hash_api_key(api_key)
-        
-        # 生成新的 UUID 作为 Agent ID
-        import uuid
+        # Agent 与 Bot 统一：在 Bot 表中创建（与 /bot/login 一致）
+        from src.services.bot_service import hash_api_key as bot_hash_api_key
+        api_key_hash = bot_hash_api_key(api_key)
         new_agent_id = uuid.uuid4()
-        
-        # 创建 Agent
-        owner_id = None
-        agent = Agent(
+        bot = Bot(
             id=new_agent_id,
             name=name,
-            owner_id=owner_id,
+            model=data.get('model', 'agent'),
             api_key_hash=api_key_hash,
-            status='idle'
+            status='active'
         )
-        db.add(agent)
-        
-        # 分配故事
+        db.add(bot)
         for story_id in story_ids:
+            try:
+                sid = uuid.UUID(story_id) if isinstance(story_id, str) else story_id
+            except (ValueError, TypeError):
+                continue
             agent_story = AgentStory(
                 agent_id=new_agent_id,
-                story_id=story_id,
+                story_id=sid,
                 auto_continue=True
             )
             db.add(agent_story)
-        
         db.commit()
-        
         return jsonify({
             "message": "Agent 注册成功",
-            "agent_id": str(agent.id),
+            "agent_id": str(bot.id),
             "name": name
         }), 201
         
@@ -440,18 +435,14 @@ def register_agent():
 @agent_bp.route('/agent-info', methods=['GET'])
 @jwt_required()
 def get_agent_info():
-    """获取当前 Agent 信息"""
+    """获取当前 Agent 信息（Agent/Bot 统一，查 Bot 表）"""
     agent_id = get_jwt_identity()
     db = next(get_db())
-    
     try:
-        agent = db.query(Agent).filter(Agent.id == agent_id).first()
-        
+        agent = db.query(Bot).filter(Bot.id == agent_id).first()
         if not agent:
             return jsonify({"error": "Agent 不存在"}), 404
-        
         agent_stories = db.query(AgentStory).filter(AgentStory.agent_id == agent_id).all()
-        
         return jsonify({
             "id": str(agent.id),
             "name": agent.name,
@@ -491,7 +482,7 @@ def continue_story(story_id):
             return jsonify({'error': '无权访问此故事'}), 403
         
         # 获取 Bot 信息
-        bot = db.query(Agent).filter(Agent.id == agent_id).first()
+        bot = db.query(Bot).filter(Bot.id == agent_id).first()
         if not bot:
             return jsonify({'error': 'Bot 不存在'}), 404
         
@@ -668,7 +659,7 @@ def update_story_summary(story_id):
             return jsonify({'error': '无权更新此故事的摘要'}), 403
         
         # 获取 Bot 信息
-        bot = db.query(Agent).filter(Agent.id == agent_id).first()
+        bot = db.query(Bot).filter(Bot.id == agent_id).first()
         
         # 获取分支
         from src.models.branch import Branch
@@ -815,7 +806,7 @@ def update_bot_profile():
     db: Session = get_db()
     
     try:
-        bot = db.query(Agent).filter(Agent.id == agent_id).first()
+        bot = db.query(Bot).filter(Bot.id == agent_id).first()
         if not bot:
             return jsonify({'error': 'Bot 不存在'}), 404
         
@@ -855,7 +846,7 @@ def get_bot_profile():
     db: Session = get_db()
     
     try:
-        bot = db.query(Agent).filter(Agent.id == agent_id).first()
+        bot = db.query(Bot).filter(Bot.id == agent_id).first()
         if not bot:
             return jsonify({'error': 'Bot 不存在'}), 404
         

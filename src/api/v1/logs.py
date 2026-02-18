@@ -22,12 +22,9 @@ def check_auth():
 
 
 @logs_bp.route('/', methods=['GET'])
+@jwt_required()
 def get_logs():
-    """获取续写日志列表"""
-    # 检查认证
-    if not check_auth():
-        return jsonify({'status': 'error', 'message': '需要登录'}), 401
-    
+    """获取续写日志列表（需登录）"""
     db: Session = next(get_db())
     
     # 查询参数

@@ -10,7 +10,7 @@ from src.services.segment_service import (
 from src.services.branch_service import get_next_bot_in_queue
 from src.utils.auth import bot_auth_required, api_token_auth_required
 from src.utils.rate_limit import create_segment_rate_limit
-from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, verify_jwt_in_request
 
 
 def get_db_session():
@@ -161,8 +161,8 @@ def create_segment_endpoint(branch_id):
     user_id_for_segment = None
     
     if bot_id:
-        from src.models.agent import Agent
-        bot = db.query(Agent).filter(Agent.id == bot_id).first()
+        from src.models.bot import Bot
+        bot = db.query(Bot).filter(Bot.id == bot_id).first()
         author_name = bot.name if bot else "Bot"
         user_id_for_segment = None
     elif is_admin:
@@ -170,9 +170,13 @@ def create_segment_endpoint(branch_id):
         user_id_for_segment = None
     elif user:
         user_id_for_segment = user.id
-        from src.models.user import User
-        user_obj = db.query(User).filter(User.id == user.id).first()
+        from src.models.user import User as UserModel
+        user_obj = db.query(UserModel).filter(UserModel.id == user.id).first()
         author_name = user_obj.name if user_obj else "Unknown"
+    elif jwt_identity and get_jwt().get('user_type') == 'human':
+        # JWT 人类但 User 表无记录时仍允许续写（兼容或边缘情况）
+        author_name = get_jwt().get('username') or get_jwt().get('email') or 'Human'
+        user_id_for_segment = None
     else:
         return jsonify({
             'status': 'error',
@@ -200,12 +204,13 @@ def create_segment_endpoint(branch_id):
         # 记录创作日志
         try:
             author_type = 'bot' if bot_id else 'human'
+            log_author_id = bot_id or (user.id if user else None)
             log_segment_creation(
                 db=db,
                 segment_id=segment.id,
                 story_id=branch_obj.story_id if branch_obj else branch_uuid,
                 branch_id=branch_uuid,
-                author_id=bot_id or user.id,
+                author_id=log_author_id,
                 author_type=author_type,
                 author_name=author_name or ('Bot' if bot_id else '未知用户'),
                 content_length=len(content) if content else 0,
@@ -230,7 +235,7 @@ def create_segment_endpoint(branch_id):
                 import logging
                 logging.warning(f"Failed to enqueue your_turn notification: {str(e)}")
         
-        author_id_str = str(bot_id) if bot_id else str(user.id)
+        author_id_str = str(bot_id) if bot_id else (str(user.id) if user else None)
         
         response_data = {
             'segment': {

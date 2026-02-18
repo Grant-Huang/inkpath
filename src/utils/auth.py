@@ -24,6 +24,18 @@ def get_bot_from_token(token: str):
     return authenticate_bot(db, token)
 
 
+def verify_api_token(token: str):
+    """验证 API Token，返回 User 或 None（供 stories 等接口使用）"""
+    from flask import current_app
+    if not token:
+        return None
+    if current_app.config.get('TESTING') and 'TEST_DB' in current_app.config:
+        db = current_app.config['TEST_DB']
+    else:
+        db = next(get_db())
+    return validate_api_token(db, token)
+
+
 def api_token_auth_required(f):
     """API Token 认证装饰器（简化认证，用于外部 Agent）"""
     @wraps(f)

@@ -36,21 +36,17 @@ def create_story_endpoint():
         verify_jwt_in_request(optional=True)
         jwt_identity = get_jwt_identity()
         jwt_claims = get_jwt()
-        
-        # 检查 user_type
-        if jwt_claims and jwt_claims.get('user_type') == 'agent':
-            # Bot 认证
+        # Bot 支持 user_type 为 'agent' 或 'bot'
+        if jwt_claims and jwt_claims.get('user_type') in ('agent', 'bot'):
             bot_id = jwt_identity
             user_type = 'bot'
         elif jwt_claims and jwt_claims.get('user_type') == 'admin':
-            # Admin 用户
             user_type = 'admin'
         elif jwt_identity:
-            # 其他 JWT 用户
             user_type = 'human'
-    except:
+    except Exception:
         pass
-    
+
     # 如果没有 JWT，尝试 API Token 认证 (人类用户)
     if not bot_id and not user_type:
         from src.utils.auth import verify_api_token
@@ -59,7 +55,7 @@ def create_story_endpoint():
             token = auth_header[7:]
             user = verify_api_token(token)
             if user:
-                user_type = user.get('user_type', 'human')
+                user_type = 'human'
             else:
                 return jsonify({'status': 'error', 'error': {'code': 'UNAUTHORIZED', 'message': '无效的认证凭证'}}), 401
         else:
@@ -85,8 +81,29 @@ def create_story_endpoint():
     min_length = data.get('min_length', 150)
     max_length = data.get('max_length', 500)
     story_pack = data.get('story_pack')
-    initial_segments = data.get('initial_segments')  # 初始续写片段列表（可选，3-5个）
-    
+    initial_segments = data.get('initial_segments')  # 初始续写片段列表（必填，3-5个）
+    if (not initial_segments or not isinstance(initial_segments, list)) and isinstance(story_pack, dict):
+        initial_segments = story_pack.get('initial_segments')
+
+    # 必填：starter 与 3-5 个 initial_segments
+    if not starter and story_pack:
+        starter = story_pack.get('starter') if isinstance(story_pack, dict) else None
+    if not starter:
+        return jsonify({
+            'status': 'error',
+            'error': {'code': 'VALIDATION_ERROR', 'message': '缺少必需字段: starter（开篇内容）'}
+        }), 400
+    if not initial_segments or not isinstance(initial_segments, list):
+        return jsonify({
+            'status': 'error',
+            'error': {'code': 'VALIDATION_ERROR', 'message': '缺少必需字段: initial_segments（3-5 个初始续写片段）'}
+        }), 400
+    if len(initial_segments) < 3 or len(initial_segments) > 5:
+        return jsonify({
+            'status': 'error',
+            'error': {'code': 'VALIDATION_ERROR', 'message': 'initial_segments 必须包含 3-5 个片段'}
+        }), 400
+
     # 处理故事包
     story_pack_json = None
     if story_pack:
@@ -104,28 +121,33 @@ def create_story_endpoint():
             starter = story_pack_json.get('starter')
     
     db: Session = get_db_session()
-    
+
+    # JWT 人类：用 identity 从 User 表解析出 user，以便设 owner_id
+    if user_type == 'human' and not user and jwt_identity:
+        try:
+            from src.models.user import User as UserModel
+            uid = uuid.UUID(str(jwt_identity)) if isinstance(jwt_identity, str) else jwt_identity
+            user = db.query(UserModel).filter(UserModel.id == uid).first()
+        except (ValueError, TypeError):
+            pass
+
     try:
         # 确定所有者
         if bot_id:
-            # Bot 创建故事，自动成为所有者
-            from src.models.agent import Agent
-            bot = db.query(Agent).filter(Agent.id == bot_id).first()
+            from src.models.bot import Bot
+            bot = db.query(Bot).filter(Bot.id == bot_id).first()
             owner_id = bot_id
             owner_type = 'bot'
             owner_name = bot.name if bot else 'Unknown Bot'
         elif user_type == 'admin':
-            # Admin 用户创建 - 不设置 owner_id（允许为 NULL）
             owner_id = None
             owner_type = 'human'
             owner_name = 'Admin'
         elif user:
-            # 人类用户创建
             owner_id = user.id
             owner_type = 'human'
-            owner_name = user.username or user.email or 'Anonymous'
+            owner_name = (getattr(user, 'name', None) or getattr(user, 'email', None) or 'Anonymous')
         else:
-            # 匿名用户
             owner_id = None
             owner_type = 'human'
             owner_name = 'Anonymous'

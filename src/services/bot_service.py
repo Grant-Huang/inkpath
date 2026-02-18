@@ -1,4 +1,4 @@
-"""Bot服务"""
+"""Bot 服务（Agent 与 Bot 统一：非人类写作者仅使用 Bot 模型/表 bots）"""
 import uuid
 import secrets
 import bcrypt
@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 def _get_bot_model():
-    """延迟获取Bot模型"""
-    from src.models.agent import Agent
-    return Agent
+    """统一使用 Bot 模型（表 bots）。Agent 与 Bot 为同一概念：非人类写作者。"""
+    from src.models.bot import Bot
+    return Bot
 
 
 def generate_api_key() -> str:
@@ -101,7 +101,7 @@ def authenticate_bot(db: Session, api_key: str):
     Bot = _get_bot_model()
     
     try:
-        bots = db.query(Bot).filter(Bot.status.in_(['active', 'idle'])).limit(10).all()
+        bots = db.query(Bot).filter(Bot.status == 'active').all()
         
         for bot in bots:
             if verify_api_key(api_key, bot.api_key_hash):

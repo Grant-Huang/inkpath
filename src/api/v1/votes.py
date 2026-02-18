@@ -6,7 +6,7 @@ from src.database import get_db
 from src.services.vote_service import (
     create_or_update_vote, get_vote_summary
 )
-from src.utils.auth import api_token_auth_required
+from src.utils.auth import api_token_auth_required, verify_api_token
 
 
 def get_db_session():
@@ -16,84 +16,99 @@ def get_db_session():
     return next(get_db())
 
 
+def _token_looks_like_jwt(token: str) -> bool:
+    """粗略判断是否为 JWT"""
+    if not token or len(token) < 50:
+        return False
+    return token.count('.') == 2
+
+
 votes_bp = Blueprint('votes', __name__)
 
 
 @votes_bp.route('/votes', methods=['POST'])
-@api_token_auth_required
 def create_vote_endpoint():
-    """投票API（支持 API Token 认证）"""
-    user = g.current_user
-    
-    # 检查速率限制
-    from src.utils.rate_limit_helper import check_rate_limit
-    rate_limit_result = check_rate_limit('vote:create', user_id=user.id)
-    if rate_limit_result:
-        return rate_limit_result
-    
+    """投票API（支持人类 API Token 与 Agent JWT）"""
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return jsonify({
+            'status': 'error',
+            'error': {'code': 'UNAUTHORIZED', 'message': '需要 Authorization: Bearer <token>'}
+        }), 401
+    token = auth_header[7:].strip()
+
+    voter_id = None
+    voter_type = None
+
+    if _token_looks_like_jwt(token):
+        try:
+            from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
+            verify_jwt_in_request(optional=True)
+            jwt_identity = get_jwt_identity()
+            jwt_claims = get_jwt()
+            if jwt_identity and jwt_claims and jwt_claims.get('user_type') in ('bot', 'agent'):
+                voter_id = uuid.UUID(str(jwt_identity)) if isinstance(jwt_identity, str) else jwt_identity
+                voter_type = 'bot'
+        except Exception:
+            pass
+
+    if not voter_id:
+        user = verify_api_token(token)
+        if user:
+            voter_id = user.id
+            voter_type = 'human'
+
+    if not voter_id or not voter_type:
+        return jsonify({
+            'status': 'error',
+            'error': {'code': 'UNAUTHORIZED', 'message': '无效的认证凭证'}
+        }), 401
+
+    if voter_type == 'human':
+        from src.utils.rate_limit_helper import check_rate_limit
+        rate_limit_result = check_rate_limit('vote:create', user_id=voter_id)
+        if rate_limit_result:
+            return rate_limit_result
+
     data = request.get_json()
-    
     if not data:
         return jsonify({
             'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': '缺少请求体'
-            }
+            'error': {'code': 'VALIDATION_ERROR', 'message': '缺少请求体'}
         }), 400
-    
+
     target_type = data.get('target_type')
     target_id = data.get('target_id')
     vote_value = data.get('vote')
-    
-    # 验证必需字段
     if not target_type or not target_id or vote_value is None:
         return jsonify({
             'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': '缺少必需字段: target_type, target_id, vote'
-            }
+            'error': {'code': 'VALIDATION_ERROR', 'message': '缺少必需字段: target_type, target_id, vote'}
         }), 400
-    
-    # 验证target_type
     if target_type not in ['branch', 'segment']:
         return jsonify({
             'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': "target_type必须是'branch'或'segment'"
-            }
+            'error': {'code': 'VALIDATION_ERROR', 'message': "target_type必须是'branch'或'segment'"}
         }), 400
-    
-    # 验证vote值
     if vote_value not in [-1, 1]:
         return jsonify({
             'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': 'vote必须是-1或1'
-            }
+            'error': {'code': 'VALIDATION_ERROR', 'message': 'vote必须是-1或1'}
         }), 400
-    
     try:
         target_uuid = uuid.UUID(target_id)
     except ValueError:
         return jsonify({
             'status': 'error',
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': '无效的target_id格式'
-            }
+            'error': {'code': 'VALIDATION_ERROR', 'message': '无效的target_id格式'}
         }), 400
-    
+
     db: Session = get_db_session()
-    
     try:
         vote, new_score = create_or_update_vote(
             db=db,
-            voter_id=user.id,
-            voter_type='human',
+            voter_id=voter_id,
+            voter_type=voter_type,
             target_type=target_type,
             target_id=target_uuid,
             vote=vote_value

@@ -88,12 +88,12 @@ def create_story(
         db.add(membership)
         db.commit()
     
-    # 获取所有者名称（用于日志）
+    # 获取所有者名称（用于日志）。Agent/Bot 统一用 Bot 表
     owner_name = 'Unknown'
     if owner_id:
         if owner_type == 'bot':
-            from src.models.agent import Agent
-            bot = db.query(Agent).filter(Agent.id == owner_id).first()
+            from src.models.bot import Bot
+            bot = db.query(Bot).filter(Bot.id == owner_id).first()
             owner_name = bot.name if bot else 'Bot'
         else:
             from src.models.user import User
