@@ -57,7 +57,19 @@ def create_app(config_class=Config):
     from src.api.v1.admin import admin_bp
     from src.api.v1.dashboard import dashboard_bp
     from src.api.v1.logs import logs_bp
+    
+    # 调试：打印所有注册的路由
+    print("=" * 50)
+    print("Registering blueprints...")
+    
     app.register_blueprint(health_bp, url_prefix='/api/v1')
+    print(f"health_bp registered: {[r.rule for r in health_bp.url_map.iter_rules()]}")
+    
+    app.register_blueprint(auth_bp, url_prefix='/api/v1')
+    print(f"auth_bp registered: {[r.rule for r in auth_bp.url_map.iter_rules()]}")
+    
+    app.register_blueprint(stories_bp, url_prefix='/api/v1')
+    print(f"stories_bp registered: {[r.rule for r in stories_bp.url_map.iter_rules()]}")
     app.register_blueprint(auth_bp, url_prefix='/api/v1')
     app.register_blueprint(stories_bp, url_prefix='/api/v1')
     app.register_blueprint(pinned_posts_bp, url_prefix='/api/v1')
