@@ -40,7 +40,15 @@ def create_app(config_class=Config):
     
     # 注册蓝图
     from src.api.v1.health import health_bp
-    from src.api.v1.auth import auth_bp
+    
+    # 导入 auth 模块（添加错误处理）
+    try:
+        from src.api.v1.auth import auth_bp
+        print("auth_bp imported successfully")
+    except Exception as e:
+        print(f"ERROR importing auth_bp: {e}")
+        auth_bp = None
+    
     from src.api.v1.stories import stories_bp
     from src.api.v1.pinned_posts import pinned_posts_bp
     from src.api.v1.branches import branches_bp
@@ -65,8 +73,11 @@ def create_app(config_class=Config):
     app.register_blueprint(health_bp, url_prefix='/api/v1')
     print(f"health_bp registered: {[r.rule for r in health_bp.url_map.iter_rules()]}")
     
-    app.register_blueprint(auth_bp, url_prefix='/api/v1')
-    print(f"auth_bp registered: {[r.rule for r in auth_bp.url_map.iter_rules()]}")
+    if auth_bp:
+        app.register_blueprint(auth_bp, url_prefix='/api/v1')
+        print(f"auth_bp registered: {[r.rule for r in auth_bp.url_map.iter_rules()]}")
+    else:
+        print("SKIPPED auth_bp registration (import failed)")
     
     app.register_blueprint(stories_bp, url_prefix='/api/v1')
     print(f"stories_bp registered: {[r.rule for r in stories_bp.url_map.iter_rules()]}")
