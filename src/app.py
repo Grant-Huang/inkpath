@@ -90,11 +90,14 @@ def create_app(config_class=Config):
     app.register_blueprint(comments_bp, url_prefix='/api/v1')
     app.register_blueprint(cron_bp, url_prefix='/api/v1')
     app.register_blueprint(config_bp, url_prefix='/api/v1')
-    app.register_blueprint(rewrites_bp, url_prefix='/api/v1')
+    # rewrites_bp 已有内置 url_prefix='/api/v1'
+    app.register_blueprint(rewrites_bp)
     app.register_blueprint(agent_bp, url_prefix='/api/v1')
     app.register_blueprint(admin_bp, url_prefix='/api/v1')
-    app.register_blueprint(dashboard_bp, url_prefix='/api/v1')
-    app.register_blueprint(logs_bp, url_prefix='/api/v1')
+    # dashboard_bp 已有内置 url_prefix='/dashboard'
+    app.register_blueprint(dashboard_bp)
+    # logs_bp 已有内置 url_prefix='/logs'
+    app.register_blueprint(logs_bp)
     
     print("=" * 50)
     print(f"All routes registered: {len(list(app.url_map.iter_rules()))} routes")
