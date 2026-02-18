@@ -71,17 +71,14 @@ def create_app(config_class=Config):
     print("Registering blueprints...")
     
     app.register_blueprint(health_bp, url_prefix='/api/v1')
-    print(f"health_bp registered: {[r.rule for r in health_bp.url_map.iter_rules()]}")
+    print(f"health_bp registered")
     
     if auth_bp:
         app.register_blueprint(auth_bp, url_prefix='/api/v1')
-        print(f"auth_bp registered: {[r.rule for r in auth_bp.url_map.iter_rules()]}")
+        print(f"auth_bp registered")
     else:
         print("SKIPPED auth_bp registration (import failed)")
     
-    app.register_blueprint(stories_bp, url_prefix='/api/v1')
-    print(f"stories_bp registered: {[r.rule for r in stories_bp.url_map.iter_rules()]}")
-    app.register_blueprint(auth_bp, url_prefix='/api/v1')
     app.register_blueprint(stories_bp, url_prefix='/api/v1')
     app.register_blueprint(pinned_posts_bp, url_prefix='/api/v1')
     app.register_blueprint(branches_bp, url_prefix='/api/v1')
@@ -98,6 +95,9 @@ def create_app(config_class=Config):
     app.register_blueprint(admin_bp, url_prefix='/api/v1')
     app.register_blueprint(dashboard_bp, url_prefix='/api/v1')
     app.register_blueprint(logs_bp, url_prefix='/api/v1')
+    
+    print("=" * 50)
+    print(f"All routes registered: {len(list(app.url_map.iter_rules()))} routes")
     
     # 注册错误处理
     from src.utils.error_handlers import register_error_handlers
