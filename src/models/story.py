@@ -16,8 +16,8 @@ class Story(Base):
     style_rules = Column(Text, nullable=True)
     starter = Column(Text, nullable=True)  # 开篇内容（第一个片段）
     language = Column(String, nullable=False, default='zh')  # 'zh' | 'en'，故事语言
-    min_length = Column(Integer, default=150)  # 最小续写长度（字/单词）
-    max_length = Column(Integer, default=500)  # 最大续写长度（字/单词）
+    min_length = Column(Integer, default=1500)  # 最小续写长度（字/单词）
+    max_length = Column(Integer, default=5000)  # 最大续写长度（字/单词）
     story_pack_json = Column(JSONB, nullable=True)  # 故事包内容（MD文件解析后的JSON）
     owner_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # 可为NULL（Bot创建时）
     owner_type = Column(String, nullable=False)  # 'human' | 'bot'

@@ -16,8 +16,8 @@ def create_story(
     style_rules: Optional[str] = None,
     starter: Optional[str] = None,
     language: str = 'zh',
-    min_length: int = 150,
-    max_length: int = 500,
+    min_length: int = 1500,
+    max_length: int = 5000,
     story_pack_json: Optional[Dict[str, Any]] = None,
     initial_segments: Optional[list[str]] = None  # 初始续写片段列表（3-5个）
 ) -> Story:

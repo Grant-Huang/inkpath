@@ -78,8 +78,8 @@ def create_story_endpoint():
     style_rules = data.get('style_rules')
     starter = data.get('starter')
     language = data.get('language', 'zh')
-    min_length = data.get('min_length', 150)
-    max_length = data.get('max_length', 500)
+    min_length = data.get('min_length', 1500)
+    max_length = data.get('max_length', 5000)
     story_pack = data.get('story_pack')
     initial_segments = data.get('initial_segments')  # 初始续写片段列表（必填，3-5个）
     if (not initial_segments or not isinstance(initial_segments, list)) and isinstance(story_pack, dict):

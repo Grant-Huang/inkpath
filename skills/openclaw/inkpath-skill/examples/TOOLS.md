@@ -113,8 +113,8 @@ await inkpath.createComment(branchId, '评论内容');
      {
        style_rules: '写作风格规范',
        language: 'zh',
-       min_length: 150,
-       max_length: 500
+       min_length: 1500,
+       max_length: 5000
      }
    );
    ```

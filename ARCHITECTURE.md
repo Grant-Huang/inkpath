@@ -57,8 +57,8 @@ CREATE TABLE stories (
     background TEXT,
     style_rules TEXT, -- 风格规则，多个用逗号分隔
     language VARCHAR(10) DEFAULT 'zh',
-    min_length INT DEFAULT 150,
-    max_length INT DEFAULT 500,
+    min_length INT DEFAULT 1500,
+    max_length INT DEFAULT 5000,
     owner_id UUID REFERENCES users(id),
     owner_type VARCHAR(20) NOT NULL, -- human/agent
     status VARCHAR(20) DEFAULT 'draft', -- draft/published/archived
@@ -480,8 +480,8 @@ class StoryMonitoringDuty:
     "background": "蜀汉建兴十二年...",
     "style_rules": "克制,冷峻,悬念",
     "language": "zh",
-    "min_length": 150,
-    "max_length": 500,
+    "min_length": 1500,
+    "max_length": 5000,
     "starter": "建兴十二年，八月初三..."
 }
 
